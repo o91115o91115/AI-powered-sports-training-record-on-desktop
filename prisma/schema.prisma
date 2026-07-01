@@ -1,0 +1,215 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model UserProfile {
+  id                  String         @id @default(cuid())
+  name                String
+  age                 Int?
+  gender              String?
+  heightCm            Float?
+  weightKg            Float?
+  dietaryRestrictions String?
+  createdAt           DateTime       @default(now())
+  updatedAt           DateTime       @updatedAt
+  trainingGoals       TrainingGoal[]
+  trainingPlans       TrainingPlan[]
+  workoutLogs         WorkoutLog[]
+  foodLogs            FoodLog[]
+  aiFeedback          AiFeedback[]
+}
+
+model TrainingGoal {
+  id                       String         @id @default(cuid())
+  userProfileId            String
+  raceName                 String?
+  targetDistance           String
+  raceDate                 DateTime?
+  targetFinishTime         String?
+  goalType                 String?
+  currentWeeklyMileageKm   Float?
+  recentFiveKTime          String?
+  recentTenKTime           String?
+  recentHalfMarathonTime   String?
+  hasMarathonExperience    Boolean        @default(false)
+  weeklyTrainingDays       Int?
+  preferredTrainingDays    String?
+  unavailableDates         String?
+  injuryNote               String?
+  fatigueLevel             String?
+  createdAt                DateTime       @default(now())
+  updatedAt                DateTime       @updatedAt
+  userProfile              UserProfile    @relation(fields: [userProfileId], references: [id], onDelete: Cascade)
+  trainingPlans            TrainingPlan[]
+}
+
+model TrainingPlan {
+  id              String                @id @default(cuid())
+  userProfileId   String
+  trainingGoalId  String?
+  title           String
+  status          String                @default("draft")
+  startDate       DateTime?
+  endDate         DateTime?
+  activeVersionId String?
+  createdAt       DateTime              @default(now())
+  updatedAt       DateTime              @updatedAt
+  userProfile     UserProfile           @relation(fields: [userProfileId], references: [id], onDelete: Cascade)
+  trainingGoal    TrainingGoal?         @relation(fields: [trainingGoalId], references: [id], onDelete: SetNull)
+  versions        TrainingPlanVersion[]
+}
+
+model TrainingPlanVersion {
+  id                         String           @id @default(cuid())
+  trainingPlanId             String
+  versionNumber              Int
+  status                     String           @default("draft")
+  summary                    String?
+  aiModel                    String?
+  promptSnapshot             String?
+  createdAt                  DateTime         @default(now())
+  confirmedAt                DateTime?
+  trainingPlan               TrainingPlan     @relation(fields: [trainingPlanId], references: [id], onDelete: Cascade)
+  trainingDays               TrainingDay[]
+  originalPlanAdjustments    PlanAdjustment[] @relation("OriginalVersion")
+  generatedPlanAdjustments   PlanAdjustment[] @relation("GeneratedVersion")
+
+  @@unique([trainingPlanId, versionNumber])
+}
+
+model TrainingDay {
+  id                    String               @id @default(cuid())
+  trainingPlanVersionId String
+  date                  DateTime
+  trainingType          String
+  targetDistanceKm      Float?
+  targetDurationMin     Int?
+  targetPace            String?
+  targetIntensity       String?
+  description           String?
+  notes                 String?
+  recoverySuggestion    String?
+  completionStatus      String               @default("planned")
+  createdAt             DateTime             @default(now())
+  updatedAt             DateTime             @updatedAt
+  trainingPlanVersion   TrainingPlanVersion  @relation(fields: [trainingPlanVersionId], references: [id], onDelete: Cascade)
+  nutritionSuggestion   NutritionSuggestion?
+  workoutLogs           WorkoutLog[]
+  foodLogs              FoodLog[]
+
+  @@index([trainingPlanVersionId, date])
+}
+
+model NutritionSuggestion {
+  id                    String      @id @default(cuid())
+  trainingDayId          String      @unique
+  carbSuggestion         String?
+  proteinSuggestion      String?
+  hydrationSuggestion    String?
+  preWorkoutSuggestion   String?
+  postWorkoutSuggestion  String?
+  longRunFuelSuggestion  String?
+  restDaySuggestion      String?
+  estimateNote           String?
+  createdAt              DateTime    @default(now())
+  updatedAt              DateTime    @updatedAt
+  trainingDay            TrainingDay @relation(fields: [trainingDayId], references: [id], onDelete: Cascade)
+}
+
+model WorkoutLog {
+  id               String       @id @default(cuid())
+  userProfileId    String
+  trainingDayId    String?
+  logDate          DateTime
+  rawInput         String
+  workoutType      String?
+  distanceKm       Float?
+  durationMin      Int?
+  pace             String?
+  heartRateAvg     Int?
+  fatigueScore     Int?
+  painLocation     String?
+  painScore        Int?
+  completionStatus String?
+  parsedByModel    String?
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+  userProfile      UserProfile  @relation(fields: [userProfileId], references: [id], onDelete: Cascade)
+  trainingDay      TrainingDay? @relation(fields: [trainingDayId], references: [id], onDelete: SetNull)
+  foodLogs         FoodLog[]
+  aiFeedback       AiFeedback[]
+
+  @@index([userProfileId, logDate])
+}
+
+model FoodLog {
+  id                String       @id @default(cuid())
+  userProfileId     String
+  trainingDayId     String?
+  workoutLogId      String?
+  logDate           DateTime
+  rawInput          String
+  mealType          String?
+  foodItemsJson     String?
+  estimatedCarbsG   Float?
+  estimatedProteinG Float?
+  estimatedCalories Float?
+  estimateNote      String?
+  parsedByModel     String?
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+  userProfile       UserProfile  @relation(fields: [userProfileId], references: [id], onDelete: Cascade)
+  trainingDay       TrainingDay? @relation(fields: [trainingDayId], references: [id], onDelete: SetNull)
+  workoutLog        WorkoutLog?  @relation(fields: [workoutLogId], references: [id], onDelete: SetNull)
+  aiFeedback        AiFeedback[]
+
+  @@index([userProfileId, logDate])
+}
+
+model AiFeedback {
+  id                 String          @id @default(cuid())
+  userProfileId      String
+  workoutLogId       String?
+  foodLogId          String?
+  planAdjustmentId   String?
+  feedbackType       String
+  summary            String
+  trainingAnalysis   String?
+  nutritionAnalysis  String?
+  riskWarning        String?
+  nextStepSuggestion String?
+  shouldReplan       Boolean         @default(false)
+  aiModel            String?
+  promptSnapshot     String?
+  createdAt          DateTime        @default(now())
+  userProfile        UserProfile     @relation(fields: [userProfileId], references: [id], onDelete: Cascade)
+  workoutLog         WorkoutLog?     @relation(fields: [workoutLogId], references: [id], onDelete: SetNull)
+  foodLog            FoodLog?        @relation(fields: [foodLogId], references: [id], onDelete: SetNull)
+  planAdjustment     PlanAdjustment? @relation(fields: [planAdjustmentId], references: [id], onDelete: SetNull)
+
+  @@index([userProfileId, createdAt])
+}
+
+model PlanAdjustment {
+  id                       String                @id @default(cuid())
+  trainingPlanVersionId    String
+  newTrainingPlanVersionId String?
+  reasonType               String
+  reasonDescription        String?
+  affectedDates            String?
+  beforeSummary            String?
+  afterSummary             String?
+  status                   String                @default("draft")
+  aiModel                  String?
+  promptSnapshot           String?
+  createdAt                DateTime              @default(now())
+  confirmedAt              DateTime?
+  originalVersion          TrainingPlanVersion   @relation("OriginalVersion", fields: [trainingPlanVersionId], references: [id], onDelete: Cascade)
+  newVersion               TrainingPlanVersion?  @relation("GeneratedVersion", fields: [newTrainingPlanVersionId], references: [id], onDelete: SetNull)
+  aiFeedback               AiFeedback[]
+}
