@@ -1,4 +1,5 @@
 import { TrainingDayForm } from "@/components/forms/training-day-form";
+import { NutritionSuggestionPanel } from "@/components/training/nutrition-suggestion-panel";
 import {
   emptyTrainingDayValues,
   type TrainingDayFormValues
@@ -102,12 +103,20 @@ export function TrainingDayList({
           </p>
         ) : (
           trainingDays.map((day) => (
-            <TrainingDayForm
-              canEdit={canEdit}
-              initialValues={toFormValues(trainingPlanVersionId, day)}
-              key={day.id}
-              mode="edit"
-            />
+            <article className="mt-4 space-y-4" key={day.id}>
+              {canEdit ? (
+                <TrainingDayForm
+                  canEdit={canEdit}
+                  initialValues={toFormValues(trainingPlanVersionId, day)}
+                  mode="edit"
+                />
+              ) : (
+                <NutritionSuggestionPanel
+                  nutritionSuggestion={day.nutritionSuggestion}
+                  trainingType={day.trainingType}
+                />
+              )}
+            </article>
           ))
         )}
       </div>

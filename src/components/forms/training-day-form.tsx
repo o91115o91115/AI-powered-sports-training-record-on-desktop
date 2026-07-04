@@ -242,6 +242,9 @@ export function TrainingDayForm({ canEdit, initialValues, mode }: TrainingDayFor
 
       <div className="mt-6 border-t border-line pt-5">
         <h5 className="text-sm font-semibold text-foreground">每日營養建議</h5>
+        <p className="mt-1 text-xs leading-5 text-muted">
+          請填寫訓練搭配方向，例如碳水、蛋白質、水分與補給重點；內容需標示為估算，不應作為醫療或營養師診斷。
+        </p>
         <div className="mt-4 grid gap-4 md:grid-cols-2">
           <label className={labelClass}>
             碳水建議
