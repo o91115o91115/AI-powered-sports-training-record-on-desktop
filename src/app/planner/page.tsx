@@ -8,6 +8,7 @@ import {
   TrainingDayList,
   type TrainingDayListItem
 } from "@/components/training/training-day-list";
+import { AiPlanGenerator } from "@/components/training/ai-plan-generator";
 import { prisma } from "@/lib/prisma";
 import {
   emptyTrainingPlanValues,
@@ -149,6 +150,8 @@ export default async function PlannerPage() {
             </p>
           </section>
         ) : null}
+
+        <AiPlanGenerator disabled={!hasProfile} />
 
         <TrainingPlanForm initialValues={planFormValues} disabled={!hasProfile} />
 
