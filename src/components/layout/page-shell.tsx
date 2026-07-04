@@ -1,12 +1,14 @@
 import Link from "next/link";
+import type { ReactNode } from "react";
 
 type PageShellProps = {
   eyebrow: string;
   title: string;
   description: string;
+  children?: ReactNode;
 };
 
-export function PageShell({ eyebrow, title, description }: PageShellProps) {
+export function PageShell({ eyebrow, title, description, children }: PageShellProps) {
   return (
     <main className="min-h-screen bg-background">
       <div className="mx-auto max-w-5xl px-6 py-8">
@@ -18,6 +20,7 @@ export function PageShell({ eyebrow, title, description }: PageShellProps) {
           <h1 className="mt-2 text-2xl font-semibold text-foreground">{title}</h1>
           <p className="mt-3 max-w-3xl leading-7 text-muted">{description}</p>
         </section>
+        {children ? <div className="mt-6">{children}</div> : null}
       </div>
     </main>
   );
