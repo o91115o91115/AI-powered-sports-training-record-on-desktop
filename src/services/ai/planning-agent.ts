@@ -89,7 +89,10 @@ export async function createTrainingPlanDraft(
 ): Promise<PlanningAgentResult> {
   const client = getOpenAIClient();
   const model = getOpenAIModel();
-  const promptSnapshot = buildPlanningPrompt(input);
+  const planningPrompt = buildPlanningPrompt(input);
+  const responseFormatGuard =
+    "格式限制：請嚴格依 response_format schema 回傳。所有 string 欄位只能填入使用者可直接閱讀的純文字句子，不得包含 JSON 語法、欄位名稱、額外引號、陣列或物件結尾符號。營養建議欄位不得出現類似 `\"}}]}` 的結構殘留。";
+  const promptSnapshot = `${planningPrompt}\n\n${responseFormatGuard}`;
 
   const response = await client.beta.chat.completions.parse({
     model,
