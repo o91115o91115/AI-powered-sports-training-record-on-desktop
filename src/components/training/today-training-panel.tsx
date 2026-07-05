@@ -1,12 +1,33 @@
-import { CalendarCheck, Footprints, Timer } from "lucide-react";
+import { Activity, CalendarCheck, Footprints, Timer } from "lucide-react";
 
 import {
   NutritionSuggestionPanel,
   type NutritionSuggestionPanelData
 } from "@/components/training/nutrition-suggestion-panel";
+import { WorkoutLogForm } from "@/components/training/workout-log-form";
+import {
+  emptyWorkoutLogValues,
+  type WorkoutLogFormValues
+} from "@/schemas/forms/workout-log";
+
+export type LatestWorkoutLog = {
+  id: string;
+  logDate: string;
+  rawInput: string;
+  workoutType: string | null;
+  distanceKm: number | null;
+  durationMin: number | null;
+  pace: string | null;
+  heartRateAvg: number | null;
+  fatigueScore: number | null;
+  painLocation: string | null;
+  painScore: number | null;
+  completionStatus: string | null;
+};
 
 export type TodayTrainingDay = {
   id: string;
+  userProfileId: string;
   date: string;
   trainingType: string;
   trainingTypeLabel: string;
@@ -20,18 +41,116 @@ export type TodayTrainingDay = {
   completionStatus: string;
   statusLabel: string;
   nutritionSuggestion: NutritionSuggestionPanelData | null;
+  latestWorkoutLog: LatestWorkoutLog | null;
 };
 
 type TodayTrainingPanelProps = {
+  canReport: boolean;
   dateLabel: string;
   day: TodayTrainingDay | null;
   title?: string;
   emptyMessage?: string;
 };
 
-const valueOrEmpty = (value: string | null | undefined) => value?.trim() || "未設定";
+const valueOrEmpty = (value: string | number | null | undefined) =>
+  value === null || value === undefined || String(value).trim() === ""
+    ? "未設定"
+    : String(value);
+
+const toNumberText = (value: number | null | undefined) =>
+  value === null || value === undefined ? "" : String(value);
+
+const toCompletionStatus = (value: string | null | undefined): WorkoutLogFormValues["completionStatus"] => {
+  if (
+    value === "completed" ||
+    value === "partial" ||
+    value === "missed" ||
+    value === "changed" ||
+    value === "rest"
+  ) {
+    return value;
+  }
+
+  return "completed";
+};
+
+const toWorkoutLogValues = (day: TodayTrainingDay): WorkoutLogFormValues => {
+  const log = day.latestWorkoutLog;
+
+  return {
+    ...emptyWorkoutLogValues,
+    workoutLogId: log?.id ?? "",
+    trainingDayId: day.id,
+    userProfileId: day.userProfileId,
+    logDate: log?.logDate ?? day.date,
+    completionStatus: toCompletionStatus(log?.completionStatus ?? day.completionStatus),
+    workoutType: log?.workoutType ?? day.trainingType,
+    distanceKm: toNumberText(log?.distanceKm),
+    durationMin: toNumberText(log?.durationMin),
+    pace: log?.pace ?? "",
+    heartRateAvg: toNumberText(log?.heartRateAvg),
+    fatigueScore: toNumberText(log?.fatigueScore),
+    painLocation: log?.painLocation ?? "",
+    painScore: toNumberText(log?.painScore),
+    rawInput: log?.rawInput ?? ""
+  };
+};
+
+function LatestWorkoutSummary({ log }: { log: LatestWorkoutLog | null }) {
+  if (!log) {
+    return (
+      <div className="rounded-lg border border-line bg-panel p-4">
+        <div className="flex items-center gap-2">
+          <Activity size={16} className="text-primary" />
+          <h3 className="font-semibold text-foreground">尚未回報訓練結果</h3>
+        </div>
+        <p className="mt-2 text-sm leading-6 text-muted">
+          填寫下方紀錄後，月曆會更新這一天的完成狀態。
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="rounded-lg border border-line bg-panel p-4">
+      <div className="flex items-center gap-2">
+        <Activity size={16} className="text-primary" />
+        <h3 className="font-semibold text-foreground">最新訓練紀錄</h3>
+      </div>
+      <div className="mt-4 grid gap-3 md:grid-cols-4">
+        <div className="rounded-md border border-line bg-background p-3">
+          <p className="text-xs font-semibold text-muted">距離</p>
+          <p className="mt-2 text-sm text-foreground">
+            {log.distanceKm ? `${log.distanceKm} km` : "未設定"}
+          </p>
+        </div>
+        <div className="rounded-md border border-line bg-background p-3">
+          <p className="text-xs font-semibold text-muted">時間</p>
+          <p className="mt-2 text-sm text-foreground">
+            {log.durationMin ? `${log.durationMin} 分鐘` : "未設定"}
+          </p>
+        </div>
+        <div className="rounded-md border border-line bg-background p-3">
+          <p className="text-xs font-semibold text-muted">疲勞</p>
+          <p className="mt-2 text-sm text-foreground">{valueOrEmpty(log.fatigueScore)}</p>
+        </div>
+        <div className="rounded-md border border-line bg-background p-3">
+          <p className="text-xs font-semibold text-muted">疼痛</p>
+          <p className="mt-2 text-sm text-foreground">
+            {valueOrEmpty(log.painScore)}
+            {log.painLocation ? ` / ${log.painLocation}` : ""}
+          </p>
+        </div>
+      </div>
+      <p className="mt-3 rounded-md border border-line bg-background p-3 text-sm leading-6 text-muted">
+        {log.rawInput}
+      </p>
+    </div>
+  );
+}
 
 export function TodayTrainingPanel({
+  canReport,
   dateLabel,
   day,
   title = "今日任務",
@@ -125,6 +244,17 @@ export function TodayTrainingPanel({
         nutritionSuggestion={day.nutritionSuggestion}
         trainingType={day.trainingType}
       />
+
+      {canReport ? (
+        <>
+          <LatestWorkoutSummary log={day.latestWorkoutLog} />
+          <WorkoutLogForm
+            canReport={canReport}
+            dateLabel={dateLabel}
+            initialValues={toWorkoutLogValues(day)}
+          />
+        </>
+      ) : null}
     </section>
   );
 }

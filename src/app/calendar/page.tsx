@@ -43,7 +43,13 @@ async function getCalendarPlan(): Promise<CalendarPlanData | null> {
       versions: {
         include: {
           trainingDays: {
-            include: { nutritionSuggestion: true },
+            include: {
+              nutritionSuggestion: true,
+              workoutLogs: {
+                orderBy: { createdAt: "desc" },
+                take: 1
+              }
+            },
             orderBy: { date: "asc" }
           }
         },
@@ -77,35 +83,56 @@ async function getCalendarPlan(): Promise<CalendarPlanData | null> {
           versionNumber: activeVersion.versionNumber,
           summary: activeVersion.summary,
           status: activeVersion.status,
-          trainingDays: activeVersion.trainingDays.map((day) => ({
-            id: day.id,
-            date: toDateInput(day.date),
-            trainingType: day.trainingType,
-            trainingTypeLabel: trainingTypeLabels[day.trainingType] ?? day.trainingType,
-            targetDistanceKm: day.targetDistanceKm,
-            targetDurationMin: day.targetDurationMin,
-            targetPace: day.targetPace,
-            targetIntensity: day.targetIntensity,
-            description: day.description,
-            notes: day.notes,
-            recoverySuggestion: day.recoverySuggestion,
-            completionStatus: day.completionStatus,
-            statusLabel:
-              completionStatusLabels[day.completionStatus] ?? day.completionStatus,
-            nutritionSuggestion: day.nutritionSuggestion
-              ? {
-                  carbSuggestion: day.nutritionSuggestion.carbSuggestion,
-                  proteinSuggestion: day.nutritionSuggestion.proteinSuggestion,
-                  hydrationSuggestion: day.nutritionSuggestion.hydrationSuggestion,
-                  preWorkoutSuggestion: day.nutritionSuggestion.preWorkoutSuggestion,
-                  postWorkoutSuggestion: day.nutritionSuggestion.postWorkoutSuggestion,
-                  longRunFuelSuggestion:
-                    day.nutritionSuggestion.longRunFuelSuggestion,
-                  restDaySuggestion: day.nutritionSuggestion.restDaySuggestion,
-                  estimateNote: day.nutritionSuggestion.estimateNote
-                }
-              : null
-          }))
+          trainingDays: activeVersion.trainingDays.map((day) => {
+            const latestWorkoutLog = day.workoutLogs[0] ?? null;
+
+            return {
+              id: day.id,
+              userProfileId: plan.userProfileId,
+              date: toDateInput(day.date),
+              trainingType: day.trainingType,
+              trainingTypeLabel: trainingTypeLabels[day.trainingType] ?? day.trainingType,
+              targetDistanceKm: day.targetDistanceKm,
+              targetDurationMin: day.targetDurationMin,
+              targetPace: day.targetPace,
+              targetIntensity: day.targetIntensity,
+              description: day.description,
+              notes: day.notes,
+              recoverySuggestion: day.recoverySuggestion,
+              completionStatus: day.completionStatus,
+              statusLabel:
+                completionStatusLabels[day.completionStatus] ?? day.completionStatus,
+              nutritionSuggestion: day.nutritionSuggestion
+                ? {
+                    carbSuggestion: day.nutritionSuggestion.carbSuggestion,
+                    proteinSuggestion: day.nutritionSuggestion.proteinSuggestion,
+                    hydrationSuggestion: day.nutritionSuggestion.hydrationSuggestion,
+                    preWorkoutSuggestion: day.nutritionSuggestion.preWorkoutSuggestion,
+                    postWorkoutSuggestion: day.nutritionSuggestion.postWorkoutSuggestion,
+                    longRunFuelSuggestion:
+                      day.nutritionSuggestion.longRunFuelSuggestion,
+                    restDaySuggestion: day.nutritionSuggestion.restDaySuggestion,
+                    estimateNote: day.nutritionSuggestion.estimateNote
+                  }
+                : null,
+              latestWorkoutLog: latestWorkoutLog
+                ? {
+                    id: latestWorkoutLog.id,
+                    logDate: toDateInput(latestWorkoutLog.logDate),
+                    rawInput: latestWorkoutLog.rawInput,
+                    workoutType: latestWorkoutLog.workoutType,
+                    distanceKm: latestWorkoutLog.distanceKm,
+                    durationMin: latestWorkoutLog.durationMin,
+                    pace: latestWorkoutLog.pace,
+                    heartRateAvg: latestWorkoutLog.heartRateAvg,
+                    fatigueScore: latestWorkoutLog.fatigueScore,
+                    painLocation: latestWorkoutLog.painLocation,
+                    painScore: latestWorkoutLog.painScore,
+                    completionStatus: latestWorkoutLog.completionStatus
+                  }
+                : null
+            };
+          })
         }
       : null
   };
@@ -126,7 +153,7 @@ export default async function CalendarPage() {
     <PageShell
       eyebrow="Calendar"
       title="訓練月曆"
-      description="查看目前執行中的訓練計畫，並用年、月、週、日檢視整體安排。點擊日期後可查看當天完整訓練內容與營養建議。"
+      description="查看目前執行中的訓練計畫，並用年、月、週、日檢視整體安排。點擊日期後可查看當天完整訓練內容、營養建議與回報訓練結果。"
     >
       <TrainingCalendarView plan={plan} todayDate={todayDate} todayLabel={todayLabel} />
     </PageShell>

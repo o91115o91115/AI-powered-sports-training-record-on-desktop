@@ -61,6 +61,15 @@ const monthLabels = [
   "12 月"
 ];
 
+const statusStyles: Record<string, string> = {
+  planned: "border-line bg-panel text-muted",
+  completed: "border-primary bg-primary/10 text-primary",
+  partial: "border-accent bg-accent/10 text-accent",
+  missed: "border-danger bg-danger/10 text-danger",
+  changed: "border-line bg-background text-foreground",
+  rest: "border-line bg-panel text-muted"
+};
+
 const formatDate = (value: string) => value || "未設定";
 
 const parseDateInput = (value: string) => {
@@ -152,7 +161,7 @@ export function TrainingCalendarView({
       <section className="rounded-lg border border-line bg-panel p-6">
         <h2 className="text-lg font-semibold text-foreground">尚未有執行中的訓練計畫</h2>
         <p className="mt-2 text-sm leading-6 text-muted">
-          請先到訓練計畫頁確認一個版本，確認後這裡會顯示每日任務與營養建議。
+          請先到訓練計畫頁確認一個版本，確認後這裡會顯示每日任務與訓練紀錄。
         </p>
         <Link
           className="mt-4 inline-flex rounded-md bg-primary px-4 py-2 text-sm font-semibold text-white"
@@ -214,13 +223,16 @@ export function TrainingCalendarView({
     const day = dayByDate.get(dateInput);
     const isToday = dateInput === todayDate;
     const isSelected = dateInput === selectedDate;
+    const statusClass = day
+      ? statusStyles[day.completionStatus] ?? statusStyles.planned
+      : "border-line bg-background text-muted";
 
     return (
       <button
         className={`min-h-24 rounded-md border p-2 text-left transition ${
           isSelected
             ? "border-primary bg-primary text-white"
-            : "border-line bg-background text-foreground hover:border-primary"
+            : `${statusClass} hover:border-primary`
         } ${options?.compact ? "min-h-14" : ""} ${
           options?.muted && !isSelected ? "opacity-45" : ""
         }`}
@@ -243,7 +255,7 @@ export function TrainingCalendarView({
         {day ? (
           <div
             className={`mt-2 rounded px-2 py-1 text-xs leading-5 ${
-              isSelected ? "bg-white/15 text-white" : "bg-panel text-muted"
+              isSelected ? "bg-white/15 text-white" : "bg-background/70"
             }`}
           >
             <p className="font-semibold">{getTrainingSummary(day)}</p>
@@ -270,7 +282,7 @@ export function TrainingCalendarView({
             <div className="mt-1 grid grid-cols-7 gap-1">
               {monthDays.map((date) => {
                 const dateInput = toDateInput(date);
-                const hasTraining = dayByDate.has(dateInput);
+                const day = dayByDate.get(dateInput);
                 const isCurrentMonth = date.getMonth() === monthIndex;
                 const isSelected = dateInput === selectedDate;
 
@@ -279,8 +291,8 @@ export function TrainingCalendarView({
                     className={`aspect-square rounded text-xs font-medium ${
                       isSelected
                         ? "bg-primary text-white"
-                        : hasTraining
-                          ? "bg-panel text-primary"
+                        : day
+                          ? statusStyles[day.completionStatus] ?? statusStyles.planned
                           : "bg-transparent text-muted"
                     } ${isCurrentMonth ? "" : "opacity-25"}`}
                     key={dateInput}
@@ -334,37 +346,43 @@ export function TrainingCalendarView({
     );
   };
 
-  const renderDayView = () => (
-    <div className="grid gap-4 lg:grid-cols-[260px_1fr]">
-      <div className="rounded-lg border border-line bg-background p-4">
-        <p className="text-sm font-semibold text-muted">目前日期</p>
-        <p className="mt-2 text-2xl font-semibold text-foreground">
-          {formatSelectedDateLabel(toDateInput(focusDate))}
-        </p>
-        <button
-          className="mt-4 w-full rounded-md border border-line bg-panel px-3 py-2 text-sm font-semibold text-foreground"
-          onClick={() => selectDate(new Date())}
-          type="button"
-        >
-          回到今天
-        </button>
-      </div>
-      <TodayTrainingPanel
-        dateLabel={formatSelectedDateLabel(toDateInput(focusDate))}
-        day={dayByDate.get(toDateInput(focusDate)) ?? null}
-        emptyMessage="這一天沒有安排訓練。可切換到月檢視查看附近日期的計畫。"
-        title="當日訓練內容"
-      />
-    </div>
-  );
+  const renderDayView = () => {
+    const focusDateInput = toDateInput(focusDate);
 
+    return (
+      <div className="grid gap-4 lg:grid-cols-[260px_1fr]">
+        <div className="rounded-lg border border-line bg-background p-4">
+          <p className="text-sm font-semibold text-muted">目前日期</p>
+          <p className="mt-2 text-2xl font-semibold text-foreground">
+            {formatSelectedDateLabel(focusDateInput)}
+          </p>
+          <button
+            className="mt-4 w-full rounded-md border border-line bg-panel px-3 py-2 text-sm font-semibold text-foreground"
+            onClick={() => selectDate(new Date())}
+            type="button"
+          >
+            回到今天
+          </button>
+        </div>
+        <TodayTrainingPanel
+          canReport={focusDateInput <= todayDate}
+          dateLabel={formatSelectedDateLabel(focusDateInput)}
+          day={dayByDate.get(focusDateInput) ?? null}
+          emptyMessage="這一天沒有安排訓練。可切換到月檢視查看附近日期的計畫。"
+          title="當日訓練內容"
+        />
+      </div>
+    );
+  };
+
+  const weekGrid = getWeekGrid(focusDate);
   const focusTitle =
     mode === "year"
       ? `${focusDate.getFullYear()} 年`
       : mode === "month"
         ? `${focusDate.getFullYear()} 年 ${focusDate.getMonth() + 1} 月`
         : mode === "week"
-          ? `${toDateInput(getWeekGrid(focusDate)[0])} - ${toDateInput(getWeekGrid(focusDate)[6])}`
+          ? `${toDateInput(weekGrid[0])} - ${toDateInput(weekGrid[6])}`
           : formatSelectedDateLabel(toDateInput(focusDate));
 
   return (
@@ -401,6 +419,7 @@ export function TrainingCalendarView({
       </section>
 
       <TodayTrainingPanel
+        canReport
         dateLabel={todayLabel}
         day={todayTraining}
         emptyMessage="今日沒有安排訓練。若這不是預期結果，請回到訓練計畫確認 active version 的日期範圍。"
@@ -416,7 +435,7 @@ export function TrainingCalendarView({
                 <h2 className="text-lg font-semibold text-foreground">訓練月曆</h2>
               </div>
               <p className="mt-2 text-sm leading-6 text-muted">
-                切換年、月、週、日檢視整體安排；點擊日期後可查看該日完整訓練內容。
+                切換年、月、週、日檢視整體安排；點擊日期後可查看與回報當日訓練結果。
               </p>
             </div>
             <div className="flex flex-wrap items-center gap-2">
@@ -490,6 +509,7 @@ export function TrainingCalendarView({
 
       {mode !== "day" ? (
         <TodayTrainingPanel
+          canReport={selectedDate <= todayDate}
           dateLabel={selectedDateLabel}
           day={selectedTraining}
           emptyMessage="選取的日期沒有安排訓練。可點擊其他日期查看完整內容。"

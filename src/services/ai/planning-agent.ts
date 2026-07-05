@@ -42,46 +42,64 @@ export type PlanningAgentResult = {
 
 const formatDate = (date: Date | null) => date?.toISOString().slice(0, 10) ?? "未提供";
 
+const getLocalDateInput = (date: Date) => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+
+  return `${year}-${month}-${day}`;
+};
+
 function buildPlanningPrompt(input: PlanningAgentInput) {
   const { userProfile, trainingGoal } = input;
+  const planStartDate = getLocalDateInput(new Date());
+  const planEndDate = formatDate(trainingGoal.raceDate);
 
-  // Prompt 必須清楚保留安全邊界，避免 AI 產生醫療診斷或過度激進訓練量。
-  return `請根據以下使用者資料，產生一份可儲存為草稿的跑步訓練與營養計畫。
+  // Prompt 需要清楚列出日期範圍與安全限制，避免 AI 任意縮短計畫或產生過度激進內容。
+  return `請根據下列資料，產生一份可保存為草稿的跑步訓練計畫與每日營養建議。
 
 使用者基本資料：
-- 名稱：${userProfile.name}
+- 姓名：${userProfile.name}
 - 年齡：${userProfile.age ?? "未提供"}
 - 性別：${userProfile.gender ?? "未提供"}
 - 身高：${userProfile.heightCm ?? "未提供"} cm
 - 體重：${userProfile.weightKg ?? "未提供"} kg
 - 飲食限制：${userProfile.dietaryRestrictions ?? "未提供"}
 
-訓練目標與目前能力：
+訓練目標與近期能力：
 - 目標賽事：${trainingGoal.raceName ?? "未提供"}
 - 目標距離：${trainingGoal.targetDistance}
 - 比賽日期：${formatDate(trainingGoal.raceDate)}
 - 目標完賽時間：${trainingGoal.targetFinishTime ?? "未提供"}
 - 目標類型：${trainingGoal.goalType ?? "未提供"}
 - 目前週跑量：${trainingGoal.currentWeeklyMileageKm ?? "未提供"} km
-- 最近 5K：${trainingGoal.recentFiveKTime ?? "未提供"}
-- 最近 10K：${trainingGoal.recentTenKTime ?? "未提供"}
-- 最近半馬：${trainingGoal.recentHalfMarathonTime ?? "未提供"}
+- 近期 5K：${trainingGoal.recentFiveKTime ?? "未提供"}
+- 近期 10K：${trainingGoal.recentTenKTime ?? "未提供"}
+- 近期半馬：${trainingGoal.recentHalfMarathonTime ?? "未提供"}
 - 是否有全馬經驗：${trainingGoal.hasMarathonExperience ? "是" : "否"}
 - 每週可訓練天數：${trainingGoal.weeklyTrainingDays ?? "未提供"}
 - 偏好訓練日：${trainingGoal.preferredTrainingDays ?? "未提供"}
-- 不方便訓練日期：${trainingGoal.unavailableDates ?? "未提供"}
-- 傷痛描述：${trainingGoal.injuryNote ?? "未提供"}
-- 疲勞狀況：${trainingGoal.fatigueLevel ?? "未提供"}
+- 不可訓練日期：${trainingGoal.unavailableDates ?? "未提供"}
+- 傷痛說明：${trainingGoal.injuryNote ?? "未提供"}
+- 疲勞狀態：${trainingGoal.fatigueLevel ?? "未提供"}
+
+計畫日期範圍：
+- 訓練起始日期：${planStartDate}
+- 訓練結束日期：${planEndDate}
+- startDate 必須等於訓練起始日期。
+- endDate 必須等於訓練結束日期。
+- trainingDays 必須依照每週可訓練天數與偏好訓練日，完整涵蓋訓練起始日期到訓練結束日期之間的週期。
+- 不得任意縮短為四週計畫；只有在比賽日期未提供或早於起始日期時，才可在 missingInformation 說明資料不足。
 
 輸出規則：
-1. 只能輸出符合指定 JSON schema 的資料。
-2. 不得宣稱保證完賽、保證 PB 或保證成績。
-3. 不得做醫療診斷；若有傷痛、高疲勞、胸悶、頭暈或呼吸異常風險，請加入保守安全提醒。
+1. 必須輸出符合指定 JSON schema 的資料。
+2. 不得宣稱醫療診斷或保證 PB / 完賽結果。
+3. 若有傷痛、疲勞過高、疼痛、暈眩等風險，請加入安全提醒。
 4. 不得短期大幅增加跑量，不得連續安排過多高強度訓練。
-5. 若資料不足，請在 missingInformation 說明，但仍可產生保守草稿。
-6. 每日營養建議需標示為方向性估算，不可包裝成醫療或營養師診斷。
-7. trainingDays 日期需落在 startDate 與 endDate 之間，若比賽日期不足，請產生 4 週保守草稿。
-8. trainingType 只能使用 easy、long_run、tempo、interval、rest、cross_training、race。`;
+5. 若資訊不足，請在 missingInformation 說明，不要自行編造高風險訓練內容。
+6. 每日營養建議為方向性估算，不得提供極端節食、過度限制熱量或醫療診斷。
+7. trainingDays 日期需落在 startDate 與 endDate 之間，並以今天到比賽日期作為完整計畫範圍，不得限制只產出四週。
+8. trainingType 必須使用 easy、long_run、tempo、interval、rest、cross_training、race。`;
 }
 
 export async function createTrainingPlanDraft(
@@ -100,7 +118,7 @@ export async function createTrainingPlanDraft(
       {
         role: "system",
         content:
-          "你是保守且重視風險控管的跑步訓練規劃助理。請產生可被前端與資料庫穩定解析的 JSON。"
+          "你是保守且重視風險控管的跑步訓練規劃助理。請嚴格依 response_format schema 輸出資料；所有字串欄位只能是純文字內容，不得混入 JSON 語法、欄位名稱或結構結尾符號。"
       },
       {
         role: "user",
