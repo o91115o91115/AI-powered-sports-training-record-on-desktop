@@ -47,10 +47,24 @@ async function getCalendarPlan(): Promise<CalendarPlanData | null> {
               nutritionSuggestion: true,
               workoutLogs: {
                 orderBy: { createdAt: "desc" },
-                take: 1
+                take: 1,
+                include: {
+                  aiFeedback: {
+                    where: { feedbackType: "daily_review" },
+                    orderBy: { createdAt: "desc" },
+                    take: 1
+                  }
+                }
               },
               foodLogs: {
-                orderBy: { createdAt: "desc" }
+                orderBy: { createdAt: "desc" },
+                include: {
+                  aiFeedback: {
+                    where: { feedbackType: "daily_review" },
+                    orderBy: { createdAt: "desc" },
+                    take: 1
+                  }
+                }
               }
             },
             orderBy: { date: "asc" }
@@ -88,6 +102,12 @@ async function getCalendarPlan(): Promise<CalendarPlanData | null> {
           status: activeVersion.status,
           trainingDays: activeVersion.trainingDays.map((day) => {
             const latestWorkoutLog = day.workoutLogs[0] ?? null;
+            const latestFeedback =
+              [
+                ...(latestWorkoutLog?.aiFeedback ?? []),
+                ...day.foodLogs.flatMap((foodLog) => foodLog.aiFeedback)
+              ].sort((first, second) => second.createdAt.getTime() - first.createdAt.getTime())[0] ??
+              null;
 
             return {
               id: day.id,
@@ -144,7 +164,25 @@ async function getCalendarPlan(): Promise<CalendarPlanData | null> {
                 estimatedProteinG: foodLog.estimatedProteinG,
                 estimatedCalories: foodLog.estimatedCalories,
                 estimateNote: foodLog.estimateNote
-              }))
+              })),
+              latestAiFeedback: latestFeedback
+                ? {
+                    id: latestFeedback.id,
+                    summary: latestFeedback.summary,
+                    trainingAnalysis: latestFeedback.trainingAnalysis,
+                    nutritionAnalysis: latestFeedback.nutritionAnalysis,
+                    riskWarning: latestFeedback.riskWarning,
+                    nextStepSuggestion: latestFeedback.nextStepSuggestion,
+                    shouldReplan: latestFeedback.shouldReplan,
+                    createdAt: latestFeedback.createdAt.toLocaleString("zh-TW", {
+                      year: "numeric",
+                      month: "2-digit",
+                      day: "2-digit",
+                      hour: "2-digit",
+                      minute: "2-digit"
+                    })
+                  }
+                : null
             };
           })
         }

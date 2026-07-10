@@ -1,6 +1,10 @@
 import { Activity, CalendarCheck, Footprints, Timer } from "lucide-react";
 
 import type { DailyLogAiFormValues } from "@/app/calendar/ai-log-actions";
+import {
+  AiFeedbackPanel,
+  type AiFeedbackPanelData
+} from "@/components/training/ai-feedback-panel";
 import { DailyLogAiForm } from "@/components/training/daily-log-ai-form";
 import {
   FoodLogManager,
@@ -55,6 +59,7 @@ export type TodayTrainingDay = {
   nutritionSuggestion: NutritionSuggestionPanelData | null;
   latestWorkoutLog: LatestWorkoutLog | null;
   foodLogs: FoodLogListItem[];
+  latestAiFeedback: AiFeedbackPanelData | null;
 };
 
 type TodayTrainingPanelProps = {
@@ -290,6 +295,13 @@ export function TodayTrainingPanel({
         createInitialValues={toFoodLogValues(day)}
         dateLabel={dateLabel}
         foodLogs={day.foodLogs}
+      />
+
+      <AiFeedbackPanel
+        canReport={canReport}
+        feedback={day.latestAiFeedback}
+        trainingDayId={day.id}
+        userProfileId={day.userProfileId}
       />
 
       {canReport ? (
