@@ -44,28 +44,7 @@ async function getCalendarPlan(): Promise<CalendarPlanData | null> {
         include: {
           trainingDays: {
             include: {
-              nutritionSuggestion: true,
-              workoutLogs: {
-                orderBy: { createdAt: "desc" },
-                take: 1,
-                include: {
-                  aiFeedback: {
-                    where: { feedbackType: "daily_review" },
-                    orderBy: { createdAt: "desc" },
-                    take: 1
-                  }
-                }
-              },
-              foodLogs: {
-                orderBy: { createdAt: "desc" },
-                include: {
-                  aiFeedback: {
-                    where: { feedbackType: "daily_review" },
-                    orderBy: { createdAt: "desc" },
-                    take: 1
-                  }
-                }
-              }
+              nutritionSuggestion: true
             },
             orderBy: { date: "asc" }
           }
@@ -82,6 +61,64 @@ async function getCalendarPlan(): Promise<CalendarPlanData | null> {
 
   const activeVersion =
     plan.versions.find((version) => version.id === plan.activeVersionId) ?? null;
+  const activeDateSet = new Set(
+    activeVersion?.trainingDays.map((day) => toDateInput(day.date)) ?? []
+  );
+  const [workoutLogs, foodLogs] = await Promise.all([
+    activeVersion
+      ? prisma.workoutLog.findMany({
+          where: { userProfileId: plan.userProfileId },
+          include: {
+            aiFeedback: {
+              where: { feedbackType: "daily_review" },
+              orderBy: { createdAt: "desc" },
+              take: 1
+            }
+          },
+          orderBy: { createdAt: "desc" }
+        })
+      : Promise.resolve([]),
+    activeVersion
+      ? prisma.foodLog.findMany({
+          where: { userProfileId: plan.userProfileId },
+          include: {
+            aiFeedback: {
+              where: { feedbackType: "daily_review" },
+              orderBy: { createdAt: "desc" },
+              take: 1
+            }
+          },
+          orderBy: { createdAt: "desc" }
+        })
+      : Promise.resolve([])
+  ]);
+
+  // 實際紀錄不隨版本切換搬移，月曆以同一使用者與日期聚合回 active version。
+  const workoutLogsByDate = new Map<string, typeof workoutLogs>();
+  for (const workoutLog of workoutLogs) {
+    const dateInput = toDateInput(workoutLog.logDate);
+
+    if (!activeDateSet.has(dateInput)) {
+      continue;
+    }
+
+    const dateLogs = workoutLogsByDate.get(dateInput) ?? [];
+    dateLogs.push(workoutLog);
+    workoutLogsByDate.set(dateInput, dateLogs);
+  }
+
+  const foodLogsByDate = new Map<string, typeof foodLogs>();
+  for (const foodLog of foodLogs) {
+    const dateInput = toDateInput(foodLog.logDate);
+
+    if (!activeDateSet.has(dateInput)) {
+      continue;
+    }
+
+    const dateLogs = foodLogsByDate.get(dateInput) ?? [];
+    dateLogs.push(foodLog);
+    foodLogsByDate.set(dateInput, dateLogs);
+  }
 
   return {
     id: plan.id,
@@ -101,11 +138,14 @@ async function getCalendarPlan(): Promise<CalendarPlanData | null> {
           summary: activeVersion.summary,
           status: activeVersion.status,
           trainingDays: activeVersion.trainingDays.map((day) => {
-            const latestWorkoutLog = day.workoutLogs[0] ?? null;
+            const dateInput = toDateInput(day.date);
+            const dayWorkoutLogs = workoutLogsByDate.get(dateInput) ?? [];
+            const dayFoodLogs = foodLogsByDate.get(dateInput) ?? [];
+            const latestWorkoutLog = dayWorkoutLogs[0] ?? null;
             const latestFeedback =
               [
                 ...(latestWorkoutLog?.aiFeedback ?? []),
-                ...day.foodLogs.flatMap((foodLog) => foodLog.aiFeedback)
+                ...dayFoodLogs.flatMap((foodLog) => foodLog.aiFeedback)
               ].sort((first, second) => second.createdAt.getTime() - first.createdAt.getTime())[0] ??
               null;
 
@@ -141,6 +181,7 @@ async function getCalendarPlan(): Promise<CalendarPlanData | null> {
               latestWorkoutLog: latestWorkoutLog
                 ? {
                     id: latestWorkoutLog.id,
+                    trainingDayId: latestWorkoutLog.trainingDayId,
                     logDate: toDateInput(latestWorkoutLog.logDate),
                     rawInput: latestWorkoutLog.rawInput,
                     workoutType: latestWorkoutLog.workoutType,
@@ -151,11 +192,14 @@ async function getCalendarPlan(): Promise<CalendarPlanData | null> {
                     fatigueScore: latestWorkoutLog.fatigueScore,
                     painLocation: latestWorkoutLog.painLocation,
                     painScore: latestWorkoutLog.painScore,
-                    completionStatus: latestWorkoutLog.completionStatus
+                    completionStatus: latestWorkoutLog.completionStatus,
+                    isFromCurrentTrainingDay: latestWorkoutLog.trainingDayId === day.id
                   }
                 : null,
-              foodLogs: day.foodLogs.map((foodLog) => ({
+              foodLogs: dayFoodLogs.map((foodLog) => ({
                 id: foodLog.id,
+                trainingDayId: foodLog.trainingDayId,
+                workoutLogId: foodLog.workoutLogId,
                 logDate: toDateInput(foodLog.logDate),
                 rawInput: foodLog.rawInput,
                 mealType: foodLog.mealType,
@@ -163,7 +207,8 @@ async function getCalendarPlan(): Promise<CalendarPlanData | null> {
                 estimatedCarbsG: foodLog.estimatedCarbsG,
                 estimatedProteinG: foodLog.estimatedProteinG,
                 estimatedCalories: foodLog.estimatedCalories,
-                estimateNote: foodLog.estimateNote
+                estimateNote: foodLog.estimateNote,
+                isFromCurrentTrainingDay: foodLog.trainingDayId === day.id
               })),
               latestAiFeedback: latestFeedback
                 ? {

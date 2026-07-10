@@ -50,4 +50,5 @@ export const aiTrainingPlanDraftSchema = z.object({
 });
 
 export type TrainingPlanRequest = z.infer<typeof trainingPlanRequestSchema>;
+export type AiTrainingDay = z.infer<typeof aiTrainingDaySchema>;
 export type AiTrainingPlanDraft = z.infer<typeof aiTrainingPlanDraftSchema>;

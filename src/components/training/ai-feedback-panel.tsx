@@ -1,6 +1,7 @@
 "use client";
 
 import { AlertTriangle, Bot, Loader2, Sparkles } from "lucide-react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 
@@ -125,9 +126,12 @@ export function AiFeedbackPanel({
               {feedback.nextStepSuggestion ?? "尚未提供下一步建議。"}
             </p>
             {feedback.shouldReplan ? (
-              <p className="mt-2 rounded-md border border-accent bg-accent/10 p-2 text-sm text-accent">
-                AI 建議後續檢視是否需要調整訓練計畫。
-              </p>
+              <div className="mt-2 rounded-md border border-accent bg-accent/10 p-2 text-sm text-accent">
+                <p>AI 建議後續檢視是否需要調整訓練計畫。</p>
+                <Link className="mt-2 inline-flex font-semibold underline" href="/adjustments">
+                  前往計畫調整
+                </Link>
+              </div>
             ) : null}
           </div>
         </div>

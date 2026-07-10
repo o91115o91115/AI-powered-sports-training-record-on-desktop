@@ -13,6 +13,8 @@ import { mealTypes, type FoodLogFormValues } from "@/schemas/forms/food-log";
 
 export type FoodLogManagerItem = {
   id: string;
+  trainingDayId: string | null;
+  workoutLogId: string | null;
   logDate: string;
   rawInput: string;
   mealType: string | null;
@@ -21,6 +23,7 @@ export type FoodLogManagerItem = {
   estimatedProteinG: number | null;
   estimatedCalories: number | null;
   estimateNote: string | null;
+  isFromCurrentTrainingDay: boolean;
 };
 
 type FoodLogManagerProps = {
@@ -73,6 +76,8 @@ const toFoodLogValues = (
   return {
     ...baseValues,
     foodLogId: foodLog.id,
+    trainingDayId: foodLog.trainingDayId ?? baseValues.trainingDayId,
+    workoutLogId: foodLog.workoutLogId ?? baseValues.workoutLogId,
     logDate: foodLog.logDate,
     mealType: toMealType(foodLog.mealType),
     rawInput: foodItems.length > 0 ? foodItems.join("、") : foodLog.rawInput,
@@ -108,6 +113,11 @@ function FoodLogCard({
               {foodLog.mealType ? mealTypeLabels[foodLog.mealType] ?? foodLog.mealType : "未分類"}
             </span>
             <span className="text-xs text-muted">{foodLog.logDate}</span>
+            {!foodLog.isFromCurrentTrainingDay ? (
+              <span className="rounded-md bg-accent/10 px-2 py-1 text-xs font-semibold text-accent">
+                建立於舊版計畫
+              </span>
+            ) : null}
           </div>
           <p className="mt-3 text-sm leading-6 text-foreground">{displayText}</p>
         </div>

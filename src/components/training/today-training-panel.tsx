@@ -26,6 +26,7 @@ import {
 
 export type LatestWorkoutLog = {
   id: string;
+  trainingDayId: string | null;
   logDate: string;
   rawInput: string;
   workoutType: string | null;
@@ -37,6 +38,7 @@ export type LatestWorkoutLog = {
   painLocation: string | null;
   painScore: number | null;
   completionStatus: string | null;
+  isFromCurrentTrainingDay: boolean;
 };
 
 export type FoodLogListItem = FoodLogManagerItem;
@@ -100,7 +102,7 @@ const toWorkoutLogValues = (day: TodayTrainingDay): WorkoutLogFormValues => {
   return {
     ...emptyWorkoutLogValues,
     workoutLogId: log?.id ?? "",
-    trainingDayId: day.id,
+    trainingDayId: log?.trainingDayId ?? day.id,
     userProfileId: day.userProfileId,
     logDate: log?.logDate ?? day.date,
     completionStatus: toCompletionStatus(log?.completionStatus ?? day.completionStatus),
@@ -153,6 +155,11 @@ function LatestWorkoutSummary({ log }: { log: LatestWorkoutLog | null }) {
       <div className="flex items-center gap-2">
         <Activity size={16} className="text-primary" />
         <h3 className="font-semibold text-foreground">實際訓練紀錄</h3>
+        {!log.isFromCurrentTrainingDay ? (
+          <span className="rounded-md bg-accent/10 px-2 py-1 text-xs font-semibold text-accent">
+            建立於舊版計畫
+          </span>
+        ) : null}
       </div>
       <div className="mt-4 grid gap-3 md:grid-cols-4">
         <div className="rounded-md border border-line bg-background p-3">
