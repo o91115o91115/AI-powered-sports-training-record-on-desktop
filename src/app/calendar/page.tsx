@@ -48,6 +48,9 @@ async function getCalendarPlan(): Promise<CalendarPlanData | null> {
               workoutLogs: {
                 orderBy: { createdAt: "desc" },
                 take: 1
+              },
+              foodLogs: {
+                orderBy: { createdAt: "desc" }
               }
             },
             orderBy: { date: "asc" }
@@ -130,7 +133,18 @@ async function getCalendarPlan(): Promise<CalendarPlanData | null> {
                     painScore: latestWorkoutLog.painScore,
                     completionStatus: latestWorkoutLog.completionStatus
                   }
-                : null
+                : null,
+              foodLogs: day.foodLogs.map((foodLog) => ({
+                id: foodLog.id,
+                logDate: toDateInput(foodLog.logDate),
+                rawInput: foodLog.rawInput,
+                mealType: foodLog.mealType,
+                foodItemsJson: foodLog.foodItemsJson,
+                estimatedCarbsG: foodLog.estimatedCarbsG,
+                estimatedProteinG: foodLog.estimatedProteinG,
+                estimatedCalories: foodLog.estimatedCalories,
+                estimateNote: foodLog.estimateNote
+              }))
             };
           })
         }

@@ -4,11 +4,11 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { CalendarDays, ChevronLeft, ChevronRight } from "lucide-react";
 
+import type { NutritionSuggestionPanelData } from "@/components/training/nutrition-suggestion-panel";
 import {
   TodayTrainingPanel,
   type TodayTrainingDay
 } from "@/components/training/today-training-panel";
-import type { NutritionSuggestionPanelData } from "@/components/training/nutrition-suggestion-panel";
 
 export type CalendarTrainingDay = TodayTrainingDay & {
   nutritionSuggestion: NutritionSuggestionPanelData | null;
@@ -70,7 +70,7 @@ const statusStyles: Record<string, string> = {
   rest: "border-line bg-panel text-muted"
 };
 
-const formatDate = (value: string) => value || "未設定";
+const formatDate = (value: string) => value || "未提供";
 
 const parseDateInput = (value: string) => {
   const [year, month, day] = value.split("-").map(Number);
@@ -133,7 +133,7 @@ const getTrainingSummary = (day: CalendarTrainingDay) => {
   }
 
   if (day.targetDurationMin) {
-    return `${day.trainingTypeLabel} ${day.targetDurationMin} 分`;
+    return `${day.trainingTypeLabel} ${day.targetDurationMin} 分鐘`;
   }
 
   return day.trainingTypeLabel;
@@ -141,8 +141,7 @@ const getTrainingSummary = (day: CalendarTrainingDay) => {
 
 export function TrainingCalendarView({
   plan,
-  todayDate,
-  todayLabel
+  todayDate
 }: TrainingCalendarViewProps) {
   const [mode, setMode] = useState<CalendarMode>("month");
   const [focusDate, setFocusDate] = useState(() => parseDateInput(todayDate));
@@ -159,9 +158,9 @@ export function TrainingCalendarView({
   if (!plan) {
     return (
       <section className="rounded-lg border border-line bg-panel p-6">
-        <h2 className="text-lg font-semibold text-foreground">尚未有執行中的訓練計畫</h2>
+        <h2 className="text-lg font-semibold text-foreground">尚未建立訓練計畫</h2>
         <p className="mt-2 text-sm leading-6 text-muted">
-          請先到訓練計畫頁確認一個版本，確認後這裡會顯示每日任務與訓練紀錄。
+          請先到訓練計畫建立或啟用計畫，月曆才會顯示每日安排。
         </p>
         <Link
           className="mt-4 inline-flex rounded-md bg-primary px-4 py-2 text-sm font-semibold text-white"
@@ -178,19 +177,18 @@ export function TrainingCalendarView({
       <section className="rounded-lg border border-line bg-panel p-6">
         <h2 className="text-lg font-semibold text-foreground">目前計畫沒有 active version</h2>
         <p className="mt-2 text-sm leading-6 text-muted">
-          「{plan.title}」已是執行中計畫，但尚未指定可執行版本。請回到訓練計畫頁確認版本。
+          {plan.title} 尚未啟用任何版本，請回到訓練計畫確認版本狀態。
         </p>
         <Link
           className="mt-4 inline-flex rounded-md bg-primary px-4 py-2 text-sm font-semibold text-white"
           href="/planner"
         >
-          檢查計畫版本
+          查看訓練計畫
         </Link>
       </section>
     );
   }
 
-  const todayTraining = dayByDate.get(todayDate) ?? null;
   const selectedTraining = dayByDate.get(selectedDate) ?? null;
   const selectedDateLabel = formatSelectedDateLabel(selectedDate);
 
@@ -248,7 +246,7 @@ export function TrainingCalendarView({
                 isSelected ? "bg-white text-primary" : "bg-primary text-white"
               }`}
             >
-              今日
+              今天
             </span>
           ) : null}
         </div>
@@ -368,8 +366,8 @@ export function TrainingCalendarView({
           canReport={focusDateInput <= todayDate}
           dateLabel={formatSelectedDateLabel(focusDateInput)}
           day={dayByDate.get(focusDateInput) ?? null}
-          emptyMessage="這一天沒有安排訓練。可切換到月檢視查看附近日期的計畫。"
-          title="當日訓練內容"
+          emptyMessage="這一天沒有安排訓練。請切換日期或確認訓練計畫範圍。"
+          title="日期內容"
         />
       </div>
     );
@@ -418,14 +416,6 @@ export function TrainingCalendarView({
         ) : null}
       </section>
 
-      <TodayTrainingPanel
-        canReport
-        dateLabel={todayLabel}
-        day={todayTraining}
-        emptyMessage="今日沒有安排訓練。若這不是預期結果，請回到訓練計畫確認 active version 的日期範圍。"
-        title="今日任務"
-      />
-
       <section className="rounded-lg border border-line bg-panel p-5">
         <div className="flex flex-col gap-4 border-b border-line pb-4">
           <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
@@ -435,12 +425,12 @@ export function TrainingCalendarView({
                 <h2 className="text-lg font-semibold text-foreground">訓練月曆</h2>
               </div>
               <p className="mt-2 text-sm leading-6 text-muted">
-                切換年、月、週、日檢視整體安排；點擊日期後可查看與回報當日訓練結果。
+                切換年、月、週、日檢視整體安排；點擊日期後，下方只顯示該日期的完整訓練內容與回報表單。
               </p>
             </div>
             <div className="flex flex-wrap items-center gap-2">
               <button
-                aria-label="上一個期間"
+                aria-label="上一段期間"
                 className="rounded-md border border-line bg-background p-2 text-foreground"
                 onClick={() => shiftFocus(-1)}
                 type="button"
@@ -451,7 +441,7 @@ export function TrainingCalendarView({
                 {focusTitle}
               </span>
               <button
-                aria-label="下一個期間"
+                aria-label="下一段期間"
                 className="rounded-md border border-line bg-background p-2 text-foreground"
                 onClick={() => shiftFocus(1)}
                 type="button"
@@ -493,7 +483,7 @@ export function TrainingCalendarView({
         <div className="mt-5">
           {trainingDays.length === 0 ? (
             <p className="rounded-md border border-line bg-background p-4 text-sm text-muted">
-              此版本尚未建立每日訓練安排，請回到訓練計畫頁補齊訓練日。
+              目前沒有可顯示的訓練日，請確認訓練計畫是否已產生日程。
             </p>
           ) : mode === "year" ? (
             renderYearView()
@@ -512,7 +502,7 @@ export function TrainingCalendarView({
           canReport={selectedDate <= todayDate}
           dateLabel={selectedDateLabel}
           day={selectedTraining}
-          emptyMessage="選取的日期沒有安排訓練。可點擊其他日期查看完整內容。"
+          emptyMessage="選取日期沒有安排訓練。請點選其他日期查看訓練內容。"
           title="選取日期內容"
         />
       ) : null}

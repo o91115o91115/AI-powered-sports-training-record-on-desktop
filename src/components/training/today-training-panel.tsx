@@ -1,10 +1,20 @@
 import { Activity, CalendarCheck, Footprints, Timer } from "lucide-react";
 
+import type { DailyLogAiFormValues } from "@/app/calendar/ai-log-actions";
+import { DailyLogAiForm } from "@/components/training/daily-log-ai-form";
+import {
+  FoodLogManager,
+  type FoodLogManagerItem
+} from "@/components/training/food-log-manager";
 import {
   NutritionSuggestionPanel,
   type NutritionSuggestionPanelData
 } from "@/components/training/nutrition-suggestion-panel";
 import { WorkoutLogForm } from "@/components/training/workout-log-form";
+import {
+  emptyFoodLogValues,
+  type FoodLogFormValues
+} from "@/schemas/forms/food-log";
 import {
   emptyWorkoutLogValues,
   type WorkoutLogFormValues
@@ -25,6 +35,8 @@ export type LatestWorkoutLog = {
   completionStatus: string | null;
 };
 
+export type FoodLogListItem = FoodLogManagerItem;
+
 export type TodayTrainingDay = {
   id: string;
   userProfileId: string;
@@ -42,6 +54,7 @@ export type TodayTrainingDay = {
   statusLabel: string;
   nutritionSuggestion: NutritionSuggestionPanelData | null;
   latestWorkoutLog: LatestWorkoutLog | null;
+  foodLogs: FoodLogListItem[];
 };
 
 type TodayTrainingPanelProps = {
@@ -54,13 +67,15 @@ type TodayTrainingPanelProps = {
 
 const valueOrEmpty = (value: string | number | null | undefined) =>
   value === null || value === undefined || String(value).trim() === ""
-    ? "未設定"
+    ? "未提供"
     : String(value);
 
 const toNumberText = (value: number | null | undefined) =>
   value === null || value === undefined ? "" : String(value);
 
-const toCompletionStatus = (value: string | null | undefined): WorkoutLogFormValues["completionStatus"] => {
+const toCompletionStatus = (
+  value: string | null | undefined
+): WorkoutLogFormValues["completionStatus"] => {
   if (
     value === "completed" ||
     value === "partial" ||
@@ -96,16 +111,33 @@ const toWorkoutLogValues = (day: TodayTrainingDay): WorkoutLogFormValues => {
   };
 };
 
+const toFoodLogValues = (day: TodayTrainingDay): FoodLogFormValues => ({
+  ...emptyFoodLogValues,
+  foodLogId: "",
+  trainingDayId: day.id,
+  userProfileId: day.userProfileId,
+  workoutLogId: day.latestWorkoutLog?.id ?? "",
+  logDate: day.date
+});
+
+const toDailyLogAiValues = (day: TodayTrainingDay): DailyLogAiFormValues => ({
+  trainingDayId: day.id,
+  userProfileId: day.userProfileId,
+  workoutLogId: day.latestWorkoutLog?.id ?? "",
+  logDate: day.date,
+  text: ""
+});
+
 function LatestWorkoutSummary({ log }: { log: LatestWorkoutLog | null }) {
   if (!log) {
     return (
       <div className="rounded-lg border border-line bg-panel p-4">
         <div className="flex items-center gap-2">
           <Activity size={16} className="text-primary" />
-          <h3 className="font-semibold text-foreground">尚未回報訓練結果</h3>
+          <h3 className="font-semibold text-foreground">實際訓練紀錄</h3>
         </div>
         <p className="mt-2 text-sm leading-6 text-muted">
-          填寫下方紀錄後，月曆會更新這一天的完成狀態。
+          尚未記錄這一天的實際訓練結果。
         </p>
       </div>
     );
@@ -115,19 +147,19 @@ function LatestWorkoutSummary({ log }: { log: LatestWorkoutLog | null }) {
     <div className="rounded-lg border border-line bg-panel p-4">
       <div className="flex items-center gap-2">
         <Activity size={16} className="text-primary" />
-        <h3 className="font-semibold text-foreground">最新訓練紀錄</h3>
+        <h3 className="font-semibold text-foreground">實際訓練紀錄</h3>
       </div>
       <div className="mt-4 grid gap-3 md:grid-cols-4">
         <div className="rounded-md border border-line bg-background p-3">
           <p className="text-xs font-semibold text-muted">距離</p>
           <p className="mt-2 text-sm text-foreground">
-            {log.distanceKm ? `${log.distanceKm} km` : "未設定"}
+            {log.distanceKm ? `${log.distanceKm} km` : "未提供"}
           </p>
         </div>
         <div className="rounded-md border border-line bg-background p-3">
           <p className="text-xs font-semibold text-muted">時間</p>
           <p className="mt-2 text-sm text-foreground">
-            {log.durationMin ? `${log.durationMin} 分鐘` : "未設定"}
+            {log.durationMin ? `${log.durationMin} 分鐘` : "未提供"}
           </p>
         </div>
         <div className="rounded-md border border-line bg-background p-3">
@@ -198,7 +230,7 @@ export function TodayTrainingPanel({
               距離
             </div>
             <p className="mt-2 text-sm text-foreground">
-              {day.targetDistanceKm ? `${day.targetDistanceKm} km` : "未設定"}
+              {day.targetDistanceKm ? `${day.targetDistanceKm} km` : "未提供"}
             </p>
           </div>
           <div className="rounded-md border border-line bg-background p-3">
@@ -207,7 +239,7 @@ export function TodayTrainingPanel({
               時間
             </div>
             <p className="mt-2 text-sm text-foreground">
-              {day.targetDurationMin ? `${day.targetDurationMin} 分鐘` : "未設定"}
+              {day.targetDurationMin ? `${day.targetDurationMin} 分鐘` : "未提供"}
             </p>
           </div>
           <div className="rounded-md border border-line bg-background p-3">
@@ -226,7 +258,7 @@ export function TodayTrainingPanel({
             </p>
           </div>
           <div className="rounded-md border border-line bg-background p-3">
-            <p className="text-xs font-semibold text-muted">恢復提醒</p>
+            <p className="text-xs font-semibold text-muted">恢復建議</p>
             <p className="mt-2 text-sm leading-6 text-foreground">
               {valueOrEmpty(day.recoverySuggestion)}
             </p>
@@ -243,6 +275,21 @@ export function TodayTrainingPanel({
       <NutritionSuggestionPanel
         nutritionSuggestion={day.nutritionSuggestion}
         trainingType={day.trainingType}
+      />
+
+      {canReport ? (
+        <DailyLogAiForm
+          canReport={canReport}
+          dateLabel={dateLabel}
+          initialValues={toDailyLogAiValues(day)}
+        />
+      ) : null}
+
+      <FoodLogManager
+        canReport={canReport}
+        createInitialValues={toFoodLogValues(day)}
+        dateLabel={dateLabel}
+        foodLogs={day.foodLogs}
       />
 
       {canReport ? (
