@@ -330,7 +330,12 @@ export async function confirmPlanAdjustment(
       where: { id: planAdjustmentId },
       include: {
         originalVersion: {
-          select: { trainingPlanId: true }
+          select: {
+            trainingPlan: {
+              select: { status: true }
+            },
+            trainingPlanId: true
+          }
         },
         newVersion: {
           select: { id: true }
@@ -342,6 +347,13 @@ export async function confirmPlanAdjustment(
       return {
         ok: false,
         message: "找不到要啟用的調整版本，請重新整理後再試一次。"
+      };
+    }
+
+    if (adjustment.originalVersion.trainingPlan.status === "archived") {
+      return {
+        ok: false,
+        message: "此訓練計畫已封存，不能再啟用調整版本。"
       };
     }
 

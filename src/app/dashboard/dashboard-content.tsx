@@ -565,12 +565,9 @@ export async function DashboardContent({ showHomeLink = true }: { showHomeLink?:
             </div>
           </section>
 
-          <section className="grid gap-3 md:grid-cols-4">
+          <section className="grid gap-3 md:grid-cols-3">
             <Link className="rounded-lg border border-line bg-panel p-4 text-sm font-semibold text-foreground transition hover:border-primary" href="/calendar">
               前往月曆
-            </Link>
-            <Link className="rounded-lg border border-line bg-panel p-4 text-sm font-semibold text-foreground transition hover:border-primary" href="/feedback">
-              查看 AI 回饋
             </Link>
             <Link className="rounded-lg border border-line bg-panel p-4 text-sm font-semibold text-foreground transition hover:border-primary" href="/adjustments">
               訓練調整
