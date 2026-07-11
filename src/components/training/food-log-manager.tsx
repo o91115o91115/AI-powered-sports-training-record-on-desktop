@@ -27,6 +27,7 @@ export type FoodLogManagerItem = {
 };
 
 type FoodLogManagerProps = {
+  allowCreate?: boolean;
   canReport: boolean;
   dateLabel: string;
   foodLogs: FoodLogManagerItem[];
@@ -156,6 +157,7 @@ function FoodLogCard({
 }
 
 export function FoodLogManager({
+  allowCreate = true,
   canReport,
   dateLabel,
   foodLogs,
@@ -234,7 +236,7 @@ export function FoodLogManager({
         ) : null}
       </div>
 
-      {canReport ? (
+      {canReport && allowCreate ? (
         <FoodLogForm
           canReport={canReport}
           dateLabel={dateLabel}

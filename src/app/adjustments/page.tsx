@@ -81,7 +81,7 @@ async function getAdjustmentPageData() {
       endDate: toDateInput(plan.endDate),
       activeVersionLabel: activeVersion
         ? `V${activeVersion.versionNumber}（${activeVersion.trainingDays.length} 天）`
-        : "未設定 active version"
+        : "尚未套用計畫版本"
     },
     feedback: plan.userProfile.aiFeedback.map((item) => ({
       id: item.id,
@@ -115,13 +115,13 @@ export default async function AdjustmentsPage() {
 
   return (
     <PageShell
-      eyebrow="Replan"
+      eyebrow="計畫調整"
       title="訓練計畫調整"
       description="根據近期訓練、飲食與 AI 今日回饋產生調整草稿。草稿需手動確認後才會啟用新版計畫。"
     >
       {!data ? (
         <section className="rounded-lg border border-line bg-panel p-5">
-          <h2 className="font-semibold text-foreground">目前沒有 active 訓練計畫</h2>
+          <h2 className="font-semibold text-foreground">目前沒有使用中的訓練計畫</h2>
           <p className="mt-2 text-sm leading-6 text-muted">
             請先在訓練計畫頁建立並啟用版本，再產生計畫調整草稿。
           </p>
@@ -129,7 +129,7 @@ export default async function AdjustmentsPage() {
       ) : (
         <div className="space-y-6">
           <section className="rounded-lg border border-line bg-panel p-5">
-            <p className="text-sm font-semibold text-accent">Active Plan</p>
+            <p className="text-sm font-semibold text-accent">目前計畫</p>
             <h2 className="mt-1 text-xl font-semibold text-foreground">{data.plan.title}</h2>
             <div className="mt-4 grid gap-3 text-sm text-muted md:grid-cols-3">
               <div className="rounded-md border border-line bg-background p-3">

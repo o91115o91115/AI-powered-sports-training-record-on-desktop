@@ -139,7 +139,7 @@ export async function generateAiTrainingPlanDraft(): Promise<GenerateAiPlanDraft
       if (error.message === "OPENAI_API_KEY is not configured.") {
         return {
           ok: false,
-          message: "OpenAI API Key 尚未設定，無法產生 AI 計畫草稿。"
+          message: "目前尚未完成 AI 服務設定，無法產生 AI 計畫草稿。"
         };
       }
 

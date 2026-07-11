@@ -143,7 +143,7 @@ async function getHistoryData() {
         : "未連結目標",
       activeVersionLabel: activeVersion
         ? `V${activeVersion.versionNumber}（${activeVersion.trainingDays.length} 天）`
-        : "未設定 active version"
+        : "尚未套用計畫版本"
     },
     workoutLogs: workoutLogs.map((workoutLog) => ({
       id: workoutLog.id,
@@ -213,13 +213,13 @@ export default async function HistoryPage() {
 
   return (
     <PageShell
-      eyebrow="History"
+      eyebrow="紀錄查詢"
       title="歷史紀錄"
       description="集中查詢過去訓練、飲食、AI 回饋與計畫調整紀錄。此頁保留查閱用途，資料新增與修改仍回到月曆或調整頁。"
     >
       {!data ? (
         <section className="rounded-lg border border-line bg-panel p-5">
-          <h2 className="font-semibold text-foreground">目前沒有 active 訓練計畫</h2>
+          <h2 className="font-semibold text-foreground">目前沒有使用中的訓練計畫</h2>
           <p className="mt-2 text-sm leading-6 text-muted">
             請先建立並啟用訓練計畫，歷史頁才會依使用者資料彙整紀錄。
           </p>
@@ -229,7 +229,7 @@ export default async function HistoryPage() {
           <section className="rounded-lg border border-line bg-panel p-5">
             <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
               <div>
-                <p className="text-sm font-semibold text-accent">Active Plan</p>
+                <p className="text-sm font-semibold text-accent">目前計畫</p>
                 <h2 className="mt-1 text-xl font-semibold text-foreground">{data.plan.title}</h2>
                 <p className="mt-2 text-sm text-muted">{data.plan.goalLabel}</p>
               </div>

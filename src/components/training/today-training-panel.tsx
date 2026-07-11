@@ -198,7 +198,7 @@ export function TodayTrainingPanel({
   dateLabel,
   day,
   title = "今日任務",
-  emptyMessage = "這一天沒有安排訓練。若這不是預期結果，請回到訓練計畫確認 active version 的日期範圍。"
+  emptyMessage = "這一天沒有安排訓練。若這不是預期結果，請回到訓練計畫確認目前使用版本的日期範圍。"
 }: TodayTrainingPanelProps) {
   if (!day) {
     return (
@@ -298,6 +298,7 @@ export function TodayTrainingPanel({
       ) : null}
 
       <FoodLogManager
+        allowCreate={false}
         canReport={canReport}
         createInitialValues={toFoodLogValues(day)}
         dateLabel={dateLabel}
@@ -314,11 +315,13 @@ export function TodayTrainingPanel({
       {canReport ? (
         <>
           <LatestWorkoutSummary log={day.latestWorkoutLog} />
-          <WorkoutLogForm
-            canReport={canReport}
-            dateLabel={dateLabel}
-            initialValues={toWorkoutLogValues(day)}
-          />
+          {day.latestWorkoutLog ? (
+            <WorkoutLogForm
+              canReport={canReport}
+              dateLabel={dateLabel}
+              initialValues={toWorkoutLogValues(day)}
+            />
+          ) : null}
         </>
       ) : null}
     </section>

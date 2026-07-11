@@ -175,7 +175,7 @@ export function TrainingCalendarView({
   if (!plan.activeVersion) {
     return (
       <section className="rounded-lg border border-line bg-panel p-6">
-        <h2 className="text-lg font-semibold text-foreground">目前計畫沒有 active version</h2>
+        <h2 className="text-lg font-semibold text-foreground">目前計畫尚未套用版本</h2>
         <p className="mt-2 text-sm leading-6 text-muted">
           {plan.title} 尚未啟用任何版本，請回到訓練計畫確認版本狀態。
         </p>
@@ -388,7 +388,7 @@ export function TrainingCalendarView({
       <section className="rounded-lg border border-line bg-panel p-5">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div>
-            <p className="text-sm font-semibold text-accent">Active Plan</p>
+            <p className="text-sm font-semibold text-accent">目前計畫</p>
             <h2 className="mt-1 text-xl font-semibold text-foreground">{plan.title}</h2>
             <p className="mt-2 text-sm leading-6 text-muted">{plan.goalLabel}</p>
           </div>

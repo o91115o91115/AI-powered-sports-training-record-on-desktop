@@ -242,7 +242,7 @@ export async function saveAiDailyLog(
   } catch (error) {
     const message =
       error instanceof Error && error.message.includes("OPENAI_API_KEY")
-        ? "目前尚未設定 OpenAI API Key，無法使用 AI 解析紀錄。"
+        ? "目前尚未完成 AI 服務設定，無法使用 AI 解析紀錄。"
         : "AI 解析或儲存紀錄時發生錯誤，請稍後再試，或改用手動紀錄。";
 
     return emptyResult(message);

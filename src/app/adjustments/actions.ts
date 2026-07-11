@@ -310,7 +310,7 @@ export async function generatePlanAdjustmentDraft(
   } catch (error) {
     const message =
       error instanceof Error && error.message.includes("OPENAI_API_KEY")
-        ? "目前尚未設定 OpenAI API Key，無法產生計畫調整草稿。"
+        ? "目前尚未完成 AI 服務設定，無法產生計畫調整草稿。"
         : error instanceof Error && error.message.startsWith("adjusted_dates_out_of_range")
           ? "AI 回傳了不在目前訓練區間內的日期，請重新產生調整草稿。"
           : "計畫調整草稿產生失敗，請稍後再試。";

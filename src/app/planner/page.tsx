@@ -137,9 +137,9 @@ export default async function PlannerPage() {
 
   return (
     <PageShell
-      eyebrow="Training Plan"
+      eyebrow="訓練安排"
       title="訓練計畫"
-      description="建立訓練計畫主檔、版本、每日訓練內容與每日營養建議。AI 規劃會在下一階段接上，目前先建立可儲存與可確認的資料流程。"
+      description="建立、套用與調整訓練計畫。建議先查看目前使用中的計畫，再依需要展開其他版本。"
     >
       <div className="space-y-6">
         {!hasProfile ? (
@@ -159,7 +159,7 @@ export default async function PlannerPage() {
           <div>
             <h2 className="text-lg font-semibold text-foreground">既有訓練計畫</h2>
             <p className="mt-1 text-sm text-muted">
-              草稿可新增版本與每日內容；確認版本後才會更新目前套用版本。
+              草稿可新增版本與每日內容；確認套用後才會成為目前使用中的計畫。
             </p>
           </div>
 
@@ -169,23 +169,31 @@ export default async function PlannerPage() {
             </div>
           ) : (
             plans.map((plan) => (
-              <article className="rounded-lg border border-line bg-panel p-6" key={plan.id}>
-                <div className="flex flex-col gap-3 border-b border-line pb-4 lg:flex-row lg:items-start lg:justify-between">
-                  <div>
-                    <div className="flex flex-wrap items-center gap-2">
-                      <h3 className="text-lg font-semibold text-foreground">{plan.title}</h3>
-                      <span className="rounded-md bg-background px-2 py-1 text-xs font-medium text-muted">
-                        {planStatusLabels[plan.status] ?? plan.status}
-                      </span>
+              <details
+                className="rounded-lg border border-line bg-panel p-6"
+                key={plan.id}
+                open={plan.status === "active"}
+              >
+                <summary className="cursor-pointer list-none">
+                  <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+                    <div>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <h3 className="text-lg font-semibold text-foreground">{plan.title}</h3>
+                        <span className="rounded-md bg-background px-2 py-1 text-xs font-medium text-muted">
+                          {planStatusLabels[plan.status] ?? plan.status}
+                        </span>
+                      </div>
+                      <p className="mt-2 text-sm text-muted">目標：{plan.goalLabel}</p>
+                      <p className="mt-1 text-sm text-muted">
+                        期間：{formatDate(plan.startDate)} 至 {formatDate(plan.endDate)}
+                      </p>
                     </div>
-                    <p className="mt-2 text-sm text-muted">目標：{plan.goalLabel}</p>
-                    <p className="mt-1 text-sm text-muted">
-                      期間：{formatDate(plan.startDate)} 至 {formatDate(plan.endDate)}
-                    </p>
+                    <p className="text-sm font-semibold text-primary">展開查看</p>
                   </div>
-                </div>
+                </summary>
 
-                <div className="mt-5">
+                <div className="mt-5 border-t border-line pt-5">
+                  <div>
                   <PlanVersionList
                     activeVersionId={plan.activeVersionId}
                     planId={plan.id}
@@ -202,30 +210,46 @@ export default async function PlannerPage() {
 
                 <div className="mt-5 space-y-5">
                   {plan.versions.length === 0 ? null : (
-                    <h4 className="font-semibold text-foreground">版本每日內容</h4>
+                    <h4 className="font-semibold text-foreground">每日內容</h4>
                   )}
                   {plan.versions.map((version) => (
-                    <section
+                    <details
                       className="rounded-lg border border-line bg-background p-4"
                       key={version.id}
+                      open={version.id === plan.activeVersionId}
                     >
-                      <div className="flex flex-wrap items-center gap-2">
-                        <h5 className="font-semibold text-foreground">
-                          V{version.versionNumber}
-                        </h5>
-                        <span className="rounded-md bg-panel px-2 py-1 text-xs font-medium text-muted">
-                          {version.summary || "未填寫摘要"}
-                        </span>
+                      <summary className="cursor-pointer list-none">
+                        <div className="flex flex-wrap items-center justify-between gap-3">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <h5 className="font-semibold text-foreground">
+                              V{version.versionNumber}
+                            </h5>
+                            <span className="rounded-md bg-panel px-2 py-1 text-xs font-medium text-muted">
+                              {version.summary || "未填寫摘要"}
+                            </span>
+                            {version.id === plan.activeVersionId ? (
+                              <span className="rounded-md bg-primary px-2 py-1 text-xs font-semibold text-white">
+                                目前使用
+                              </span>
+                            ) : null}
+                          </div>
+                          <span className="text-sm font-semibold text-primary">
+                            {version.trainingDaysCount} 天
+                          </span>
+                        </div>
+                      </summary>
+                      <div className="mt-4 border-t border-line pt-4">
+                        <TrainingDayList
+                          canEdit={version.status === "draft" && plan.status !== "archived"}
+                          trainingDays={version.trainingDays}
+                          trainingPlanVersionId={version.id}
+                        />
                       </div>
-                      <TrainingDayList
-                        canEdit={version.status === "draft" && plan.status !== "archived"}
-                        trainingDays={version.trainingDays}
-                        trainingPlanVersionId={version.id}
-                      />
-                    </section>
+                    </details>
                   ))}
                 </div>
-              </article>
+                </div>
+              </details>
             ))
           )}
         </section>

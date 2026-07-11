@@ -157,7 +157,7 @@ export async function generateDailyReviewFeedback(
   } catch (error) {
     const message =
       error instanceof Error && error.message.includes("OPENAI_API_KEY")
-        ? "目前尚未設定 OpenAI API Key，無法產生 AI 今日回饋。"
+        ? "目前尚未完成 AI 服務設定，無法產生 AI 今日回饋。"
         : "AI 今日回饋產生失敗，請稍後再試。";
 
     return {
