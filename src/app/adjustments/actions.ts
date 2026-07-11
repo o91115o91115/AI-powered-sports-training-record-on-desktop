@@ -106,11 +106,11 @@ export async function generatePlanAdjustmentDraft(
   if (!parsed.success) {
     return {
       ok: false,
-      message: "缺少訓練計畫資料，請重新整理後再試一次。"
+      message: parsed.error.issues[0]?.message ?? "缺少訓練計畫資料，請重新整理後再試一次。"
     };
   }
 
-  const { trainingPlanId } = parsed.data;
+  const { adjustmentRequest, trainingPlanId } = parsed.data;
 
   try {
     const plan = await prisma.trainingPlan.findUnique({
@@ -169,6 +169,7 @@ export async function generatePlanAdjustmentDraft(
       : "未提供目標";
 
     const result = await createPlanAdjustmentDraft({
+      adjustmentRequest,
       plan: {
         title: plan.title,
         goalLabel,

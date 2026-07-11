@@ -32,6 +32,7 @@ export type PlanningAgentInput = {
     injuryNote: string | null;
     fatigueLevel: string | null;
   };
+  conversationSummary?: string | null;
 };
 
 export type PlanningAgentResult = {
@@ -51,7 +52,7 @@ const getLocalDateInput = (date: Date) => {
 };
 
 function buildPlanningPrompt(input: PlanningAgentInput) {
-  const { userProfile, trainingGoal } = input;
+  const { conversationSummary, userProfile, trainingGoal } = input;
   const planStartDate = getLocalDateInput(new Date());
   const planEndDate = formatDate(trainingGoal.raceDate);
 
@@ -83,6 +84,9 @@ function buildPlanningPrompt(input: PlanningAgentInput) {
 - 傷痛說明：${trainingGoal.injuryNote ?? "未提供"}
 - 疲勞狀態：${trainingGoal.fatigueLevel ?? "未提供"}
 
+對話補充摘要：
+${conversationSummary?.trim() || "未提供"}
+
 計畫日期範圍：
 - 訓練起始日期：${planStartDate}
 - 訓練結束日期：${planEndDate}
@@ -99,7 +103,8 @@ function buildPlanningPrompt(input: PlanningAgentInput) {
 5. 若資訊不足，請在 missingInformation 說明，不要自行編造高風險訓練內容。
 6. 每日營養建議為方向性估算，不得提供極端節食、過度限制熱量或醫療診斷。
 7. trainingDays 日期需落在 startDate 與 endDate 之間，並以今天到比賽日期作為完整計畫範圍，不得限制只產出四週。
-8. trainingType 必須使用 easy、long_run、tempo、interval、rest、cross_training、race。`;
+8. 若對話補充摘要與既有訓練目標衝突，請在 missingInformation 或 riskWarnings 說明，不要自行覆蓋既有資料。
+9. trainingType 必須使用 easy、long_run、tempo、interval、rest、cross_training、race。`;
 }
 
 export async function createTrainingPlanDraft(

@@ -3,7 +3,8 @@ import { z } from "zod";
 import { aiTrainingPlanDraftSchema } from "@/schemas/ai/training-plan";
 
 export const replanRequestSchema = z.object({
-  trainingPlanId: z.string().min(1)
+  trainingPlanId: z.string().min(1),
+  adjustmentRequest: z.string().trim().min(5, "請輸入至少 5 個字的調整需求。")
 });
 
 export const aiPlanAdjustmentDraftSchema = z.object({

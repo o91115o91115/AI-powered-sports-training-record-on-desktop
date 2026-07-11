@@ -69,6 +69,7 @@ export function PlanAdjustmentPanel({
 }: PlanAdjustmentPanelProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
+  const [adjustmentRequest, setAdjustmentRequest] = useState("");
   const [result, setResult] = useState<AdjustmentActionResult | null>(null);
 
   const runAction = (action: () => Promise<AdjustmentActionResult>) => {
@@ -92,14 +93,31 @@ export function PlanAdjustmentPanel({
             目前版本：{activeVersionLabel}。產生調整草稿後，需手動確認才會啟用新版。
           </p>
         </div>
+      </div>
+
+      <div className="mt-4 space-y-3">
+        <textarea
+          className="min-h-24 w-full resize-y rounded-md border border-line bg-white px-3 py-2 text-sm text-foreground outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/15 disabled:cursor-not-allowed disabled:opacity-60"
+          disabled={isPending}
+          onChange={(event) => setAdjustmentRequest(event.target.value)}
+          placeholder="例如：週三不要排間歇，長跑改到週日；或最近疲勞偏高，請降低本週強度。"
+          value={adjustmentRequest}
+        />
         <button
           className="inline-flex items-center justify-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-semibold text-white transition hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-60"
-          disabled={isPending}
-          onClick={() => runAction(() => generatePlanAdjustmentDraft({ trainingPlanId: planId }))}
+          disabled={isPending || adjustmentRequest.trim().length < 5}
+          onClick={() =>
+            runAction(() =>
+              generatePlanAdjustmentDraft({
+                adjustmentRequest,
+                trainingPlanId: planId
+              })
+            )
+          }
           type="button"
         >
           {isPending ? <Loader2 className="animate-spin" size={16} /> : <Sparkles size={16} />}
-          產生調整草稿
+          依需求產生調整草稿
         </button>
       </div>
 

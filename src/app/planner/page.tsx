@@ -8,8 +8,13 @@ import {
   TrainingDayList,
   type TrainingDayListItem
 } from "@/components/training/training-day-list";
-import { AiPlanGenerator } from "@/components/training/ai-plan-generator";
+import { AiPlanChat } from "@/components/training/ai-plan-chat";
+import {
+  PlanAdjustmentPanel,
+  type PlanAdjustmentItem
+} from "@/components/training/plan-adjustment-panel";
 import { prisma } from "@/lib/prisma";
+import { aiPlanningConversationSchema } from "@/schemas/ai/planning-conversation";
 import {
   emptyTrainingPlanValues,
   type TrainingPlanFormValues
@@ -22,6 +27,8 @@ type PlannerPlan = {
   startDate: string;
   endDate: string;
   activeVersionId: string | null;
+  activeVersionLabel: string;
+  adjustments: PlanAdjustmentItem[];
   goalLabel: string;
   versions: Array<
     VersionListItem & {
@@ -35,6 +42,19 @@ const toDateInput = (value: Date | null | undefined) =>
 
 const formatDate = (value: string) => value || "未設定";
 
+const parseConversationMetadata = (metadataJson: string | null) => {
+  if (!metadataJson) {
+    return null;
+  }
+
+  try {
+    const parsed = aiPlanningConversationSchema.safeParse(JSON.parse(metadataJson));
+    return parsed.success ? parsed.data : null;
+  } catch {
+    return null;
+  }
+};
+
 async function getPlannerData() {
   const profile = await prisma.userProfile.findFirst({
     include: {
@@ -47,6 +67,28 @@ async function getPlannerData() {
   });
 
   const latestGoal = profile?.trainingGoals[0];
+
+  const activeConversation =
+    profile && latestGoal
+      ? await prisma.trainingPlanConversation.findFirst({
+          where: {
+            status: "active",
+            trainingGoalId: latestGoal.id,
+            userProfileId: profile.id
+          },
+          include: {
+            messages: {
+              orderBy: { createdAt: "asc" }
+            }
+          },
+          orderBy: { updatedAt: "desc" }
+        })
+      : null;
+
+  const latestAssistantMessage = activeConversation?.messages
+    .slice()
+    .reverse()
+    .find((message) => message.role === "assistant");
 
   const plans = profile
     ? await prisma.trainingPlan.findMany({
@@ -66,6 +108,59 @@ async function getPlannerData() {
         orderBy: { updatedAt: "desc" }
       })
     : [];
+  const adjustments = profile
+    ? await prisma.planAdjustment.findMany({
+        where: {
+          originalVersion: {
+            trainingPlan: {
+              userProfileId: profile.id
+            }
+          }
+        },
+        include: {
+          originalVersion: {
+            select: { trainingPlanId: true }
+          },
+          newVersion: {
+            include: {
+              trainingDays: {
+                select: { id: true }
+              }
+            }
+          }
+        },
+        orderBy: { createdAt: "desc" }
+      })
+    : [];
+  const adjustmentsByPlanId = new Map<string, PlanAdjustmentItem[]>();
+
+  for (const adjustment of adjustments) {
+    const planAdjustments = adjustmentsByPlanId.get(adjustment.originalVersion.trainingPlanId) ?? [];
+    planAdjustments.push({
+      id: adjustment.id,
+      reasonType: adjustment.reasonType,
+      reasonDescription: adjustment.reasonDescription,
+      affectedDates: adjustment.affectedDates,
+      beforeSummary: adjustment.beforeSummary,
+      afterSummary: adjustment.afterSummary,
+      status: adjustment.status,
+      createdAt: adjustment.createdAt.toLocaleString("zh-TW", {
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit"
+      }),
+      newVersion: adjustment.newVersion
+        ? {
+            id: adjustment.newVersion.id,
+            versionNumber: adjustment.newVersion.versionNumber,
+            trainingDaysCount: adjustment.newVersion.trainingDays.length
+          }
+        : null
+    });
+    adjustmentsByPlanId.set(adjustment.originalVersion.trainingPlanId, planAdjustments);
+  }
 
   const planFormValues: TrainingPlanFormValues = profile
     ? {
@@ -76,53 +171,76 @@ async function getPlannerData() {
     : emptyTrainingPlanValues;
 
   return {
+    activeConversation: activeConversation
+      ? {
+          id: activeConversation.id,
+          conversation: parseConversationMetadata(latestAssistantMessage?.metadataJson ?? null),
+          messages: activeConversation.messages
+            .filter((message) => message.role === "user" || message.role === "assistant")
+            .map((message) => ({
+              role: message.role as "user" | "assistant",
+              content: message.content
+            }))
+        }
+      : null,
+    hasGoal: Boolean(latestGoal),
     hasProfile: Boolean(profile),
     planFormValues,
-    plans: plans.map<PlannerPlan>((plan) => ({
-      id: plan.id,
-      title: plan.title,
-      status: plan.status,
-      startDate: toDateInput(plan.startDate),
-      endDate: toDateInput(plan.endDate),
-      activeVersionId: plan.activeVersionId,
-      goalLabel: plan.trainingGoal
-        ? `${plan.trainingGoal.targetDistance}${
-            plan.trainingGoal.raceName ? ` / ${plan.trainingGoal.raceName}` : ""
-          }`
-        : "未綁定目標",
-      versions: plan.versions.map((version) => ({
-        id: version.id,
-        versionNumber: version.versionNumber,
-        status: version.status,
-        summary: version.summary,
-        trainingDaysCount: version.trainingDays.length,
-        trainingDays: version.trainingDays.map((day) => ({
-          id: day.id,
-          date: toDateInput(day.date),
-          trainingType: day.trainingType,
-          targetDistanceKm: day.targetDistanceKm,
-          targetDurationMin: day.targetDurationMin,
-          targetPace: day.targetPace,
-          targetIntensity: day.targetIntensity,
-          description: day.description,
-          notes: day.notes,
-          recoverySuggestion: day.recoverySuggestion,
-          nutritionSuggestion: day.nutritionSuggestion
-            ? {
-                carbSuggestion: day.nutritionSuggestion.carbSuggestion,
-                proteinSuggestion: day.nutritionSuggestion.proteinSuggestion,
-                hydrationSuggestion: day.nutritionSuggestion.hydrationSuggestion,
-                preWorkoutSuggestion: day.nutritionSuggestion.preWorkoutSuggestion,
-                postWorkoutSuggestion: day.nutritionSuggestion.postWorkoutSuggestion,
-                longRunFuelSuggestion:
-                  day.nutritionSuggestion.longRunFuelSuggestion,
-                restDaySuggestion: day.nutritionSuggestion.restDaySuggestion,
-                estimateNote: day.nutritionSuggestion.estimateNote
-              }
-            : null
+    plans: plans.map<PlannerPlan>((plan) => {
+      const activeVersion = plan.versions.find(
+        (version) => version.id === plan.activeVersionId
+      );
+
+      return {
+        id: plan.id,
+        title: plan.title,
+        status: plan.status,
+        startDate: toDateInput(plan.startDate),
+        endDate: toDateInput(plan.endDate),
+        activeVersionId: plan.activeVersionId,
+        activeVersionLabel: activeVersion
+          ? `V${activeVersion.versionNumber}（${activeVersion.trainingDays.length} 天）`
+          : "尚未套用計畫版本",
+        adjustments: adjustmentsByPlanId.get(plan.id) ?? [],
+        goalLabel: plan.trainingGoal
+          ? `${plan.trainingGoal.targetDistance}${
+              plan.trainingGoal.raceName ? ` / ${plan.trainingGoal.raceName}` : ""
+            }`
+          : "未綁定目標",
+        versions: plan.versions.map((version) => ({
+          id: version.id,
+          versionNumber: version.versionNumber,
+          status: version.status,
+          summary: version.summary,
+          trainingDaysCount: version.trainingDays.length,
+          trainingDays: version.trainingDays.map((day) => ({
+            id: day.id,
+            date: toDateInput(day.date),
+            trainingType: day.trainingType,
+            targetDistanceKm: day.targetDistanceKm,
+            targetDurationMin: day.targetDurationMin,
+            targetPace: day.targetPace,
+            targetIntensity: day.targetIntensity,
+            description: day.description,
+            notes: day.notes,
+            recoverySuggestion: day.recoverySuggestion,
+            nutritionSuggestion: day.nutritionSuggestion
+              ? {
+                  carbSuggestion: day.nutritionSuggestion.carbSuggestion,
+                  proteinSuggestion: day.nutritionSuggestion.proteinSuggestion,
+                  hydrationSuggestion: day.nutritionSuggestion.hydrationSuggestion,
+                  preWorkoutSuggestion: day.nutritionSuggestion.preWorkoutSuggestion,
+                  postWorkoutSuggestion: day.nutritionSuggestion.postWorkoutSuggestion,
+                  longRunFuelSuggestion:
+                    day.nutritionSuggestion.longRunFuelSuggestion,
+                  restDaySuggestion: day.nutritionSuggestion.restDaySuggestion,
+                  estimateNote: day.nutritionSuggestion.estimateNote
+                }
+              : null
+          }))
         }))
-      }))
-    }))
+      };
+    })
   };
 }
 
@@ -133,7 +251,8 @@ const planStatusLabels: Record<string, string> = {
 };
 
 export default async function PlannerPage() {
-  const { hasProfile, planFormValues, plans } = await getPlannerData();
+  const { activeConversation, hasGoal, hasProfile, planFormValues, plans } =
+    await getPlannerData();
 
   return (
     <PageShell
@@ -151,7 +270,10 @@ export default async function PlannerPage() {
           </section>
         ) : null}
 
-        <AiPlanGenerator disabled={!hasProfile} />
+        <AiPlanChat
+          disabled={!hasProfile || !hasGoal}
+          initialConversation={activeConversation}
+        />
 
         <TrainingPlanForm initialValues={planFormValues} disabled={!hasProfile} />
 
@@ -248,6 +370,15 @@ export default async function PlannerPage() {
                     </details>
                   ))}
                 </div>
+                {plan.activeVersionId ? (
+                  <div className="mt-5">
+                    <PlanAdjustmentPanel
+                      activeVersionLabel={plan.activeVersionLabel}
+                      adjustments={plan.adjustments}
+                      planId={plan.id}
+                    />
+                  </div>
+                ) : null}
                 </div>
               </details>
             ))
