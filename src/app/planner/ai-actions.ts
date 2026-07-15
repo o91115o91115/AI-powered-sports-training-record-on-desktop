@@ -31,6 +31,11 @@ export type GenerateTrainingPlanFromConversationInput = {
   conversation: AiPlanningConversation | null;
 };
 
+export type RestartTrainingPlanConversationResult = {
+  ok: boolean;
+  message: string;
+};
+
 const getRequiredPlannerContext = async () => {
   const userProfile = await prisma.userProfile.findFirst({
     include: {
@@ -400,6 +405,65 @@ export async function sendTrainingPlanChatMessage(
     return {
       ok: false,
       message: "AI 對話回覆失敗，請稍後再試，或改用較簡短的描述。"
+    };
+  }
+}
+
+export async function restartTrainingPlanConversation(
+  conversationId: string | null
+): Promise<RestartTrainingPlanConversationResult> {
+  try {
+    if (!conversationId) {
+      return {
+        ok: true,
+        message: "已準備開始新的 AI 課表規劃對話。"
+      };
+    }
+
+    const { trainingGoal, userProfile } = await getRequiredPlannerContext();
+    const conversation = await prisma.trainingPlanConversation.findFirst({
+      where: {
+        id: conversationId,
+        status: "active",
+        trainingGoalId: trainingGoal.id,
+        userProfileId: userProfile.id
+      },
+      select: { id: true }
+    });
+
+    if (!conversation) {
+      return {
+        ok: true,
+        message: "目前沒有進行中的 AI 對話，已可重新開始。"
+      };
+    }
+
+    await prisma.trainingPlanConversation.update({
+      where: { id: conversation.id },
+      data: {
+        status: "discarded"
+      }
+    });
+
+    revalidatePath("/planner");
+
+    return {
+      ok: true,
+      message: "已放棄本次 AI 對話，可以重新開始新的課表規劃。"
+    };
+  } catch (error) {
+    if (error instanceof Error) {
+      if (error.message === "missing_profile" || error.message === "missing_goal") {
+        return {
+          ok: false,
+          message: "請先完成使用者基本資料與訓練目標，再重新開始 AI 對話。"
+        };
+      }
+    }
+
+    return {
+      ok: false,
+      message: "重新開始 AI 對話失敗，請稍後再試。"
     };
   }
 }

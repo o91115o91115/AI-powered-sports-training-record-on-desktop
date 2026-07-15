@@ -1,13 +1,15 @@
 "use client";
 
-import { AlertTriangle, Send, Sparkles } from "lucide-react";
+import { AlertTriangle, RotateCcw, Send, Sparkles } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { FormEvent, useState, useTransition } from "react";
+import { FormEvent, useEffect, useRef, useState, useTransition } from "react";
 
 import {
   generateTrainingPlanFromConversation,
+  restartTrainingPlanConversation,
   sendTrainingPlanChatMessage,
   type GenerateAiPlanDraftResult,
+  type RestartTrainingPlanConversationResult,
   type SendTrainingPlanChatMessageResult,
   type TrainingPlanChatMessage
 } from "@/app/planner/ai-actions";
@@ -42,6 +44,7 @@ const getReadinessClass = (readiness: AiPlanningConversation["readiness"]) => {
 
 export function AiPlanChat({ disabled, initialConversation }: AiPlanChatProps) {
   const router = useRouter();
+  const messagesContainerRef = useRef<HTMLDivElement | null>(null);
   const [input, setInput] = useState("");
   const [conversationId, setConversationId] = useState<string | null>(
     initialConversation?.id ?? null
@@ -54,7 +57,22 @@ export function AiPlanChat({ disabled, initialConversation }: AiPlanChatProps) {
   );
   const [chatResult, setChatResult] = useState<SendTrainingPlanChatMessageResult | null>(null);
   const [generateResult, setGenerateResult] = useState<GenerateAiPlanDraftResult | null>(null);
+  const [restartResult, setRestartResult] =
+    useState<RestartTrainingPlanConversationResult | null>(null);
   const [isPending, startTransition] = useTransition();
+
+  useEffect(() => {
+    const container = messagesContainerRef.current;
+
+    if (!container) {
+      return;
+    }
+
+    container.scrollTo({
+      top: container.scrollHeight,
+      behavior: "smooth"
+    });
+  }, [messages.length]);
 
   const onSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -75,6 +93,7 @@ export function AiPlanChat({ disabled, initialConversation }: AiPlanChatProps) {
     ]);
     setChatResult(null);
     setGenerateResult(null);
+    setRestartResult(null);
 
     startTransition(async () => {
       const actionResult = await sendTrainingPlanChatMessage(conversationId, content);
@@ -90,6 +109,7 @@ export function AiPlanChat({ disabled, initialConversation }: AiPlanChatProps) {
 
   const onGenerate = () => {
     setGenerateResult(null);
+    setRestartResult(null);
 
     startTransition(async () => {
       const actionResult = await generateTrainingPlanFromConversation({
@@ -104,8 +124,28 @@ export function AiPlanChat({ disabled, initialConversation }: AiPlanChatProps) {
     });
   };
 
+  const onRestart = () => {
+    setChatResult(null);
+    setGenerateResult(null);
+    setRestartResult(null);
+
+    startTransition(async () => {
+      const actionResult = await restartTrainingPlanConversation(conversationId);
+      setRestartResult(actionResult);
+
+      if (actionResult.ok) {
+        setConversationId(null);
+        setMessages([]);
+        setConversation(null);
+        setInput("");
+        router.refresh();
+      }
+    });
+  };
+
   const canGenerate =
     Boolean(conversation) && conversation?.readiness !== "needs_more_info" && !disabled;
+  const canRestart = Boolean(conversationId) || messages.length > 0;
 
   return (
     <section className="rounded-lg border border-line bg-panel p-6">
@@ -116,15 +156,26 @@ export function AiPlanChat({ disabled, initialConversation }: AiPlanChatProps) {
             先補充目標、近期能力、可訓練時間與身體狀態，AI 會整理資訊後產生草稿課表。
           </p>
         </div>
-        <button
-          className="inline-flex items-center justify-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-semibold text-white transition hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-60"
-          disabled={!canGenerate || isPending}
-          onClick={onGenerate}
-          type="button"
-        >
-          <Sparkles size={16} />
-          {isPending ? "處理中" : "依對話產生課表"}
-        </button>
+        <div className="flex flex-wrap gap-2">
+          <button
+            className="inline-flex items-center justify-center gap-2 rounded-md border border-line px-4 py-2 text-sm font-semibold text-muted transition hover:border-danger hover:text-danger disabled:cursor-not-allowed disabled:opacity-60"
+            disabled={!canRestart || disabled || isPending}
+            onClick={onRestart}
+            type="button"
+          >
+            <RotateCcw size={16} />
+            放棄本次對話
+          </button>
+          <button
+            className="inline-flex items-center justify-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-semibold text-white transition hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-60"
+            disabled={!canGenerate || isPending}
+            onClick={onGenerate}
+            type="button"
+          >
+            <Sparkles size={16} />
+            {isPending ? "處理中" : "依對話產生課表"}
+          </button>
+        </div>
       </div>
 
       <p className="mt-3 text-xs leading-5 text-muted">
@@ -138,7 +189,10 @@ export function AiPlanChat({ disabled, initialConversation }: AiPlanChatProps) {
       ) : null}
 
       <div className="mt-5 rounded-md border border-line bg-background">
-        <div className="max-h-96 space-y-3 overflow-y-auto p-4">
+        <div
+          className="max-h-96 space-y-3 overflow-y-auto p-4"
+          ref={messagesContainerRef}
+        >
           {messages.length === 0 ? (
             <p className="text-sm leading-6 text-muted">
               可以先告訴 AI：你的目標賽事、目前每週跑量、每週可訓練天數、最近是否有疼痛或疲勞。
@@ -218,6 +272,16 @@ export function AiPlanChat({ disabled, initialConversation }: AiPlanChatProps) {
           }`}
         >
           {generateResult.message}
+        </p>
+      ) : null}
+
+      {restartResult ? (
+        <p
+          className={`mt-3 text-sm font-medium ${
+            restartResult.ok ? "text-primary" : "text-danger"
+          }`}
+        >
+          {restartResult.message}
         </p>
       ) : null}
     </section>
