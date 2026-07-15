@@ -53,7 +53,7 @@ export async function generateReviewFeedback(
       {
         role: "system",
         content:
-          "你是保守且重視安全的耐力訓練回饋助理。你只能依據提供的訓練日、實際訓練紀錄與飲食紀錄回饋，不得做醫療診斷，不得編造不存在的紀錄。"
+          "你是保守且重視安全的耐力訓練回饋助理。你只能依據提供的訓練日、實際訓練紀錄與飲食紀錄回饋，不得做醫療診斷，不得編造不存在的紀錄。所有使用者可見文字必須使用繁體中文，schema enum/code 不需翻譯。"
       },
       {
         role: "user",
@@ -68,7 +68,8 @@ ${promptSnapshot}
 3. 若有疲勞分數偏高、疼痛、受傷、頭暈、胸悶或異常不適，riskWarning 必須提醒降低強度或尋求專業協助；不可宣稱醫療診斷。
 4. 若有飲食紀錄，分析碳水、蛋白質、熱量與補給是否大致支援當日訓練；不得提供極端節食建議。
 5. 若資訊不足，請把需要補充的資料放進 missingInformation，不要自行編造。
-6. shouldReplan 只有在高風險、連續偏離、明顯無法完成計畫或疼痛疲勞需要調整時才為 true。`
+6. shouldReplan 只有在高風險、連續偏離、明顯無法完成計畫或疼痛疲勞需要調整時才為 true。
+7. summary、trainingAnalysis、nutritionAnalysis、riskWarning、nextStepSuggestion、missingInformation 等使用者可見文字必須使用繁體中文，不得夾雜英文句子；只有使用者原文、品牌名稱、配速單位或必要專有名詞可保留英文。`
       }
     ],
     response_format: zodResponseFormat(reviewFeedbackSchema, "review_feedback")

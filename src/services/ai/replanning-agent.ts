@@ -71,7 +71,7 @@ export async function createPlanAdjustmentDraft(
       {
         role: "system",
         content:
-          "你是保守且重視安全的耐力訓練計畫調整助理。請依使用者調整需求，在最小必要範圍內產生新版草稿；不得覆蓋舊版本，不得做醫療診斷。"
+          "你是保守且重視安全的耐力訓練計畫調整助理。請依使用者調整需求，在最小必要範圍內產生新版草稿；不得覆蓋舊版本，不得做醫療診斷。所有使用者可見文字必須使用繁體中文，schema enum/code 不需翻譯。"
       },
       {
         role: "user",
@@ -92,7 +92,7 @@ ${promptSnapshot}
 9. affectedDates 必須列出主要被調整的日期。
 10. beforeSummary 與 afterSummary 要讓使用者能比較調整前後差異。
 11. reasonDescription 必須提到使用者的調整需求與採用的調整策略。
-12. 所有文字欄位只能放一般文字，不得放 JSON 片段或 markdown code block。`
+12. 所有文字欄位只能放繁體中文一般文字，不得夾雜英文句子、JSON 片段或 markdown code block；只有 trainingType 等 schema enum/code、使用者原文、品牌名稱、配速單位或必要專有名詞可保留英文。`
       }
     ],
     response_format: zodResponseFormat(aiPlanAdjustmentDraftSchema, "plan_adjustment_draft")

@@ -107,7 +107,8 @@ ${painStatus}
 7. 若資訊足夠產生保守且合理的課表，readiness 請使用 ready_to_generate。
 8. 不得宣稱醫療診斷，不得保證完賽或 PB。
 9. collectedFacts 請整理目前已知事實，不確定就填 null。
-10. assistantMessage 請直接給使用者閱讀，語氣清楚簡短；優先追問尚未回答的非疼痛核心資料。`;
+10. assistantMessage、missingInformation、riskWarnings、suggestedNextQuestion 與 collectedFacts 內的所有文字必須使用繁體中文，不得夾雜英文句子；只有使用者原文、品牌名稱、配速單位或必要專有名詞可保留英文。
+11. assistantMessage 請直接給使用者閱讀，語氣清楚簡短；優先追問尚未回答的非疼痛核心資料。`;
 }
 
 export async function continueTrainingPlanConversation(
@@ -123,7 +124,7 @@ export async function continueTrainingPlanConversation(
       {
         role: "system",
         content:
-          "你是保守且重視風險控管的跑步訓練規劃對話助理。請追問必要資訊、整理已知事實與風險，不要輸出完整訓練課表。"
+          "你是保守且重視風險控管的跑步訓練規劃對話助理。請追問必要資訊、整理已知事實與風險，不要輸出完整訓練課表。所有使用者可見文字必須使用繁體中文，schema enum/code 不需翻譯。"
       },
       {
         role: "user",

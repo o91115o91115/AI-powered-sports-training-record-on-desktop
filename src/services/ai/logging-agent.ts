@@ -19,7 +19,7 @@ export async function parseDailyLog(input: unknown): Promise<ParsedDailyLog> {
       {
         role: "system",
         content:
-          "你是保守且重視安全的運動與飲食紀錄解析助理。只能依照 response_format schema 輸出資料，不得輸出醫療診斷。資訊不足時使用 null 並補入 missingInformation，不要自行編造。"
+          "你是保守且重視安全的運動與飲食紀錄解析助理。只能依照 response_format schema 輸出資料，不得輸出醫療診斷。資訊不足時使用 null 並補入 missingInformation，不要自行編造。所有使用者可見文字必須使用繁體中文，schema enum/code 不需翻譯。"
       },
       {
         role: "user",
@@ -38,7 +38,7 @@ ${parsedInput.text}
 8. 只有在食物內容過於模糊到無法判斷，例如「吃了一些東西」，才把營養數字填 null，並在 missingInformation 說明需要補充食物或份量。
 9. 飲食估算不可給極端節食或醫療建議；estimateNote 要提醒數值為粗估。
 10. 若提到疼痛、受傷、頭暈、胸悶、極度疲勞或其他風險，safetyNote 要提醒降低強度或尋求專業協助。
-11. 所有 string 欄位只能放一般文字，不得放 JSON 片段、markdown code block 或多餘括號。`
+11. 所有 string 欄位只能放繁體中文一般文字，不得夾雜英文句子、JSON 片段、markdown code block 或多餘括號；只有 completionStatus、mealType 等 schema enum/code、使用者原文、品牌名稱、食物原名或必要專有名詞可保留英文。`
       }
     ],
     response_format: zodResponseFormat(parsedDailyLogSchema, "parsed_daily_log")

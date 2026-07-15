@@ -104,7 +104,8 @@ ${conversationSummary?.trim() || "未提供"}
 6. 每日營養建議為方向性估算，不得提供極端節食、過度限制熱量或醫療診斷。
 7. trainingDays 日期需落在 startDate 與 endDate 之間，並以今天到比賽日期作為完整計畫範圍，不得限制只產出四週。
 8. 若對話補充摘要與既有訓練目標衝突，請在 missingInformation 或 riskWarnings 說明，不要自行覆蓋既有資料。
-9. trainingType 必須使用 easy、long_run、tempo、interval、rest、cross_training、race。`;
+9. 所有使用者可見的 string 欄位必須使用繁體中文，不得夾雜英文句子；只有 trainingType 等 schema enum/code、使用者原文、品牌名稱、配速單位或必要專有名詞可保留英文。
+10. trainingType 必須使用 easy、long_run、tempo、interval、rest、cross_training、race。`;
 }
 
 export async function createTrainingPlanDraft(
@@ -114,7 +115,7 @@ export async function createTrainingPlanDraft(
   const model = getOpenAIModel();
   const planningPrompt = buildPlanningPrompt(input);
   const responseFormatGuard =
-    "格式限制：請嚴格依 response_format schema 回傳。所有 string 欄位只能填入使用者可直接閱讀的純文字句子，不得包含 JSON 語法、欄位名稱、額外引號、陣列或物件結尾符號。營養建議欄位不得出現類似 `\"}}]}` 的結構殘留。";
+    "格式限制：請嚴格依 response_format schema 回傳。所有 string 欄位只能填入使用者可直接閱讀的繁體中文純文字句子，不得包含 JSON 語法、欄位名稱、額外引號、陣列或物件結尾符號。營養建議欄位不得出現類似 `\"}}]}` 的結構殘留。schema enum/code 不需翻譯。";
   const promptSnapshot = `${planningPrompt}\n\n${responseFormatGuard}`;
 
   const response = await client.beta.chat.completions.parse({
@@ -123,7 +124,7 @@ export async function createTrainingPlanDraft(
       {
         role: "system",
         content:
-          "你是保守且重視風險控管的跑步訓練規劃助理。請嚴格依 response_format schema 輸出資料；所有字串欄位只能是純文字內容，不得混入 JSON 語法、欄位名稱或結構結尾符號。"
+          "你是保守且重視風險控管的跑步訓練規劃助理。請嚴格依 response_format schema 輸出資料；所有使用者可見的字串欄位必須使用繁體中文純文字，不得混入英文句子、JSON 語法、欄位名稱或結構結尾符號。schema enum/code 不需翻譯。"
       },
       {
         role: "user",
