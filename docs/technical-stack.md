@@ -13,9 +13,9 @@
 5. 根據疲勞、傷痛、缺課或目標變更重新調整訓練計畫。
 6. 透過 Dashboard、月曆與歷史紀錄追蹤訓練狀態。
 
-## 2. 建議技術架構
+## 2. 技術架構
 
-本專案建議採用單一 Next.js 專案，包含前端頁面、後端 API、資料庫存取與 AI 溝通邏輯。
+本專案採用單一 Next.js 專案，包含 React 頁面、Server Actions、少量 Route Handlers、資料庫存取與 AI 溝通邏輯。
 
 ```text
 Browser
@@ -59,6 +59,8 @@ OpenAI API
 | SQLite | 本機資料庫 | 不需額外安裝資料庫服務，適合本機端產品 |
 | Prisma | ORM | 提供資料模型、migration 與型別安全查詢 |
 
+目前主要版本為 Next.js 15、React 19、TypeScript 5、Prisma 6 與 Tailwind CSS 3，實際版本以 `package.json` 為準。
+
 ## 5. AI 功能
 
 本專案 AI 功能統一透過 OpenAI API 與 LLM 溝通。
@@ -71,6 +73,7 @@ OpenAI API
 | Logging Agent | 將自然語言運動與飲食紀錄整理為結構化資料 |
 | Review Agent | 比對原定計畫與實際紀錄，產生分析與回饋 |
 | Replanning Agent | 根據近期紀錄重新調整後續訓練菜單 |
+| Conversation Agent | 蒐集規劃所需資訊，判斷資料完整度與風險後再交由 Planning Agent 產生草稿 |
 
 ### 5.2 OpenAI API 套件
 
@@ -93,7 +96,7 @@ OPENAI_MODEL="gpt-4.1-mini"
 
 ### 5.4 AI Service 分層
 
-建議在後端建立 AI service，不要讓 UI 元件直接呼叫 OpenAI SDK。
+AI service 建立於後端，UI 元件不直接呼叫 OpenAI SDK。多數功能透過 Server Actions 執行；每日 AI 紀錄另提供 Route Handler。
 
 ```text
 UI Component
@@ -102,20 +105,18 @@ UI Component
       -> OpenAI API
 ```
 
-建議目錄：
+目前 AI 相關目錄：
 
 ```text
 src/
   app/
     api/
       ai/
-        plan/
         log/
-        review/
-        replan/
   services/
     ai/
       openai-client.ts
+      conversation-agent.ts
       planning-agent.ts
       logging-agent.ts
       review-agent.ts
@@ -145,7 +146,6 @@ pnpm add zod
 | 套件 | 用途 |
 | --- | --- |
 | tailwindcss | UI 樣式 |
-| shadcn/ui | 表單、按鈕、對話框、卡片、表格等 UI 元件 |
 | lucide-react | Icon |
 | react-hook-form | 表單狀態管理 |
 | zod | 表單與 AI JSON schema 驗證 |
@@ -158,12 +158,7 @@ pnpm add zod
 | @tanstack/react-query | 前端 API 查詢快取 |
 | zustand | 輕量狀態管理 |
 
-建議安裝：
-
-```bash
-pnpm add lucide-react react-hook-form zod @hookform/resolvers date-fns recharts @tanstack/react-query zustand
-pnpm add @fullcalendar/react @fullcalendar/daygrid @fullcalendar/interaction
-```
+套件版本與完整清單以 `package.json` 及 `pnpm-lock.yaml` 為準。
 
 ## 7. 後端與資料庫套件
 
@@ -173,12 +168,7 @@ pnpm add @fullcalendar/react @fullcalendar/daygrid @fullcalendar/interaction
 | @prisma/client | 應用程式查詢資料庫 |
 | openai | 呼叫 OpenAI API |
 
-建議安裝：
-
-```bash
-pnpm add @prisma/client openai
-pnpm add -D prisma
-```
+目前使用 Prisma 6 與 OpenAI Node SDK 4。
 
 ## 8. 開發與測試套件
 
@@ -189,13 +179,9 @@ pnpm add -D prisma
 | vitest | 單元測試 |
 | playwright | 端對端測試與瀏覽器畫面驗證 |
 
-建議安裝：
+目前已設定 ESLint、Prettier、Vitest 與 Playwright；可分別執行 lint、單元測試與端對端測試。
 
-```bash
-pnpm add -D eslint prettier vitest playwright
-```
-
-## 9. 建議專案目錄
+## 9. 專案目錄
 
 ```text
 src/
@@ -205,25 +191,20 @@ src/
     planner/
     calendar/
     logs/
-    feedback/
     adjustments/
     history/
     api/
   components/
-    ui/
     dashboard/
-    calendar/
     forms/
-    ai-chat/
+    layout/
+    training/
   lib/
     prisma.ts
     env.ts
-    date.ts
+    utils.ts
   services/
     ai/
-    training/
-    nutrition/
-    analytics/
   schemas/
     ai/
     forms/
@@ -234,13 +215,13 @@ prisma/
 docs/
 ```
 
-## 10. 建議執行指令
+## 10. 執行指令
 
 首次安裝：
 
 ```bash
 pnpm install
-pnpm prisma migrate dev
+pnpm prisma:migrate
 ```
 
 啟動本機服務：
@@ -263,3 +244,4 @@ http://localhost:3000
 4. 訓練計畫重新調整時，只能建立新版本，不應直接覆蓋舊版本。
 5. 飲食營養數值預設為估算，畫面上需明確標示。
 6. 傷痛、胸悶、頭暈、呼吸異常等高風險輸入應觸發保守建議。
+7. 規劃對話需先通過 Zod schema 驗證並確認 readiness；資料不足時應繼續詢問，高風險時應優先顯示安全提醒。

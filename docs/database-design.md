@@ -1,4 +1,4 @@
-# 資料庫 Table 規劃與 ERD
+# 資料庫 Table 設計與 ERD
 
 ## 1. 設計目標
 
@@ -11,7 +11,7 @@
 5. AI 分析回饋。
 6. AI 重新調整計畫紀錄。
 
-資料庫建議使用 SQLite，並透過 Prisma ORM 管理 schema 與 migration。
+資料庫目前使用 SQLite，並透過 Prisma ORM 管理 schema、relation 與 migration。
 
 ## 2. Entity Relationship Diagram
 
@@ -22,8 +22,10 @@ erDiagram
   UserProfile ||--o{ WorkoutLog : writes
   UserProfile ||--o{ FoodLog : writes
   UserProfile ||--o{ AiFeedback : receives
+  UserProfile ||--o{ TrainingPlanConversation : starts
 
   TrainingGoal ||--o{ TrainingPlan : creates
+  TrainingGoal ||--o{ TrainingPlanConversation : provides_context
 
   TrainingPlan ||--o{ TrainingPlanVersion : has
   TrainingPlanVersion ||--o{ TrainingDay : contains
@@ -36,8 +38,10 @@ erDiagram
   FoodLog ||--o{ AiFeedback : analyzed_by
 
   TrainingPlanVersion ||--o{ PlanAdjustment : adjusted_by
+  TrainingPlanVersion ||--o| TrainingPlanConversation : generated_from
   PlanAdjustment ||--o| TrainingPlanVersion : creates_new_version
   PlanAdjustment ||--o{ AiFeedback : referenced_by
+  TrainingPlanConversation ||--o{ TrainingPlanConversationMessage : contains
 
   UserProfile {
     string id PK
@@ -96,6 +100,28 @@ erDiagram
     string promptSnapshot
     datetime createdAt
     datetime confirmedAt
+  }
+
+  TrainingPlanConversation {
+    string id PK
+    string userProfileId FK
+    string trainingGoalId FK
+    string generatedTrainingPlanVersionId FK
+    string status
+    string summary
+    string readiness
+    string riskLevel
+    datetime createdAt
+    datetime updatedAt
+  }
+
+  TrainingPlanConversationMessage {
+    string id PK
+    string conversationId FK
+    string role
+    string content
+    string metadataJson
+    datetime createdAt
   }
 
   TrainingDay {
@@ -301,7 +327,37 @@ erDiagram
 | createdAt | DateTime | 建立時間 |
 | updatedAt | DateTime | 更新時間 |
 
-## 3.6 NutritionSuggestion
+## 3.6 TrainingPlanConversation
+
+儲存 AI 訓練規劃對話的狀態、資訊完整度與風險層級。對話可關聯訓練目標，產生草稿後再關聯唯一一筆 TrainingPlanVersion。
+
+| 欄位 | 型別 | 說明 |
+| --- | --- | --- |
+| id | String | Primary key |
+| userProfileId | String | 關聯 UserProfile |
+| trainingGoalId | String | 可選，關聯 TrainingGoal |
+| generatedTrainingPlanVersionId | String | 可選且唯一，關聯此對話產生的 TrainingPlanVersion |
+| status | String | active、completed、archived，預設 active |
+| summary | String | 對話摘要與已蒐集資訊 |
+| readiness | String | needs_more_info、ready_to_generate、high_risk，預設 needs_more_info |
+| riskLevel | String | 可選，normal、caution、high_risk |
+| createdAt | DateTime | 建立時間 |
+| updatedAt | DateTime | 更新時間 |
+
+## 3.7 TrainingPlanConversationMessage
+
+依時間順序保存規劃對話訊息與 AI 結構化判斷，供後續繼續對話及產生訓練計畫。
+
+| 欄位 | 型別 | 說明 |
+| --- | --- | --- |
+| id | String | Primary key |
+| conversationId | String | 關聯 TrainingPlanConversation |
+| role | String | user、assistant |
+| content | String | 對話訊息內容 |
+| metadataJson | String | 可選，AI 回傳的 readiness、已蒐集資訊與風險提醒 JSON |
+| createdAt | DateTime | 建立時間 |
+
+## 3.8 NutritionSuggestion
 
 每日營養建議，通常對應一筆 TrainingDay。
 
@@ -320,7 +376,7 @@ erDiagram
 | createdAt | DateTime | 建立時間 |
 | updatedAt | DateTime | 更新時間 |
 
-## 3.7 WorkoutLog
+## 3.9 WorkoutLog
 
 每日運動紀錄。保留原始自然語言輸入與 AI 整理後的結構化資料。
 
@@ -344,7 +400,7 @@ erDiagram
 | createdAt | DateTime | 建立時間 |
 | updatedAt | DateTime | 更新時間 |
 
-## 3.8 FoodLog
+## 3.10 FoodLog
 
 每日飲食紀錄。保留原始自然語言輸入與 AI 粗估營養資料。
 
@@ -366,7 +422,7 @@ erDiagram
 | createdAt | DateTime | 建立時間 |
 | updatedAt | DateTime | 更新時間 |
 
-## 3.9 AiFeedback
+## 3.11 AiFeedback
 
 AI 對每日紀錄、每週狀態或計畫調整的分析回饋。
 
@@ -388,7 +444,7 @@ AI 對每日紀錄、每週狀態或計畫調整的分析回饋。
 | promptSnapshot | String | 產生回饋時使用的 prompt 快照 |
 | createdAt | DateTime | 建立時間 |
 
-## 3.10 PlanAdjustment
+## 3.12 PlanAdjustment
 
 訓練計畫重新調整紀錄。使用者確認後，才建立或套用新的 TrainingPlanVersion。
 
@@ -408,7 +464,7 @@ AI 對每日紀錄、每週狀態或計畫調整的分析回饋。
 | createdAt | DateTime | 建立時間 |
 | confirmedAt | DateTime | 使用者確認時間 |
 
-## 4. 狀態值建議
+## 4. 狀態值
 
 ## 4.1 TrainingPlan.status
 
@@ -462,6 +518,14 @@ AI 對每日紀錄、每週狀態或計畫調整的分析回饋。
 | user_request | 使用者主動要求 |
 | ai_risk | AI 判斷有風險 |
 
+## 4.6 TrainingPlanConversation.readiness
+
+| 值 | 說明 |
+| --- | --- |
+| needs_more_info | 核心資料不足，需繼續詢問 |
+| ready_to_generate | 資料足以產生保守且合理的計畫 |
+| high_risk | 有明顯傷痛或身體風險，不直接產生高強度計畫 |
+
 ## 5. Prisma 實作注意事項
 
 1. SQLite 不強制支援複雜 JSON 型別時，可先以 `String` 儲存 JSON 字串。
@@ -470,6 +534,8 @@ AI 對每日紀錄、每週狀態或計畫調整的分析回饋。
 4. 所有 AI 產生的重要結果建議儲存 `aiModel` 與 `promptSnapshot`，方便追蹤與除錯。
 5. 訓練計畫不可直接覆蓋，應透過 `TrainingPlanVersion` 與 `PlanAdjustment` 保留版本歷史。
 6. 高風險傷痛或身體狀況可先存在 `AiFeedback.riskWarning`，後續再擴充獨立風險事件表。
+7. `TrainingPlanVersion` 以 `trainingPlanId` 與 `versionNumber` 組成唯一鍵，避免同一計畫出現重複版本號。
+8. 訓練日、每日紀錄、AI 回饋與規劃對話已建立常用查詢索引；刪除使用者或主計畫時採級聯刪除，刪除可選關聯資料時採 `SetNull` 保留紀錄。
 
 ## 6. 後續可擴充 Table
 
@@ -477,7 +543,6 @@ AI 對每日紀錄、每週狀態或計畫調整的分析回饋。
 
 | Table | 用途 |
 | --- | --- |
-| AiConversation | 儲存完整 AI 對話紀錄 |
 | RiskEvent | 獨立追蹤傷痛、疲勞與高風險警示 |
 | WeeklyReview | 每週回顧摘要 |
 | ImportSource | 串接 Garmin、Strava、Apple Health 等資料來源 |
