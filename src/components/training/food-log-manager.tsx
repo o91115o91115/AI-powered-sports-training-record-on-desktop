@@ -32,6 +32,7 @@ type FoodLogManagerProps = {
   dateLabel: string;
   foodLogs: FoodLogManagerItem[];
   createInitialValues: FoodLogFormValues;
+  highlightedFoodLogIds?: string[];
 };
 
 const mealTypeLabels: Record<string, string> = {
@@ -48,7 +49,9 @@ const mealTypeLabels: Record<string, string> = {
 const toNumberText = (value: number | null | undefined) =>
   value === null || value === undefined ? "" : String(value);
 
-const toMealType = (value: string | null | undefined): FoodLogFormValues["mealType"] =>
+const toMealType = (
+  value: string | null | undefined
+): FoodLogFormValues["mealType"] =>
   mealTypes.includes(value as FoodLogFormValues["mealType"])
     ? (value as FoodLogFormValues["mealType"])
     : "other";
@@ -61,7 +64,10 @@ const parseFoodItems = (foodItemsJson: string | null) => {
   try {
     const parsed = JSON.parse(foodItemsJson);
     return Array.isArray(parsed)
-      ? parsed.filter((item): item is string => typeof item === "string" && item.trim() !== "")
+      ? parsed.filter(
+          (item): item is string =>
+            typeof item === "string" && item.trim() !== ""
+        )
       : [];
   } catch {
     return [];
@@ -92,35 +98,53 @@ const toFoodLogValues = (
 function FoodLogCard({
   canReport,
   foodLog,
+  isNewlyCreated,
   isDeleting,
   onDelete,
   onEdit
 }: {
   canReport: boolean;
   foodLog: FoodLogManagerItem;
+  isNewlyCreated: boolean;
   isDeleting: boolean;
   onDelete: () => void;
   onEdit: () => void;
 }) {
   const foodItems = parseFoodItems(foodLog.foodItemsJson);
-  const displayText = foodItems.length > 0 ? foodItems.join("、") : foodLog.rawInput;
+  const displayText =
+    foodItems.length > 0 ? foodItems.join("、") : foodLog.rawInput;
 
   return (
-    <article className="rounded-md border border-line bg-background p-3">
+    <article
+      className={`rounded-md border p-3 ${
+        isNewlyCreated
+          ? "border-primary bg-primary/10"
+          : "border-line bg-background"
+      }`}
+    >
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <div className="flex flex-wrap items-center gap-2">
             <span className="rounded-md bg-panel px-2 py-1 text-xs font-semibold text-muted">
-              {foodLog.mealType ? mealTypeLabels[foodLog.mealType] ?? foodLog.mealType : "未分類"}
+              {foodLog.mealType
+                ? (mealTypeLabels[foodLog.mealType] ?? foodLog.mealType)
+                : "未分類"}
             </span>
             <span className="text-xs text-muted">{foodLog.logDate}</span>
+            {isNewlyCreated ? (
+              <span className="rounded-md bg-primary px-2 py-1 text-xs font-semibold text-white">
+                本次新增
+              </span>
+            ) : null}
             {!foodLog.isFromCurrentTrainingDay ? (
               <span className="rounded-md bg-accent/10 px-2 py-1 text-xs font-semibold text-accent">
                 建立於舊版計畫
               </span>
             ) : null}
           </div>
-          <p className="mt-3 text-sm leading-6 text-foreground">{displayText}</p>
+          <p className="mt-3 text-sm leading-6 text-foreground">
+            {displayText}
+          </p>
         </div>
         {canReport ? (
           <div className="flex shrink-0 gap-2">
@@ -150,7 +174,9 @@ function FoodLogCard({
         <p>熱量：{foodLog.estimatedCalories ?? "未估算"} kcal</p>
       </div>
       {foodLog.estimateNote ? (
-        <p className="mt-2 text-xs leading-5 text-muted">{foodLog.estimateNote}</p>
+        <p className="mt-2 text-xs leading-5 text-muted">
+          {foodLog.estimateNote}
+        </p>
       ) : null}
     </article>
   );
@@ -161,13 +187,15 @@ export function FoodLogManager({
   canReport,
   dateLabel,
   foodLogs,
-  createInitialValues
+  createInitialValues,
+  highlightedFoodLogIds = []
 }: FoodLogManagerProps) {
   const router = useRouter();
   const [editingId, setEditingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [result, setResult] = useState<CalendarActionResult | null>(null);
   const [isPending, startTransition] = useTransition();
+  const highlightedFoodLogIdSet = new Set(highlightedFoodLogIds);
 
   const handleDelete = (foodLogId: string) => {
     const confirmed = window.confirm("確定要刪除這筆飲食紀錄嗎？");
@@ -221,6 +249,7 @@ export function FoodLogManager({
                   canReport={canReport}
                   foodLog={foodLog}
                   isDeleting={isPending && deletingId === foodLog.id}
+                  isNewlyCreated={highlightedFoodLogIdSet.has(foodLog.id)}
                   key={foodLog.id}
                   onDelete={() => handleDelete(foodLog.id)}
                   onEdit={() => setEditingId(foodLog.id)}
@@ -230,7 +259,9 @@ export function FoodLogManager({
           </div>
         )}
         {result ? (
-          <p className={`mt-3 text-sm ${result.ok ? "text-primary" : "text-danger"}`}>
+          <p
+            className={`mt-3 text-sm ${result.ok ? "text-primary" : "text-danger"}`}
+          >
             {result.message}
           </p>
         ) : null}

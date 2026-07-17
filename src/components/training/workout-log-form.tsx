@@ -6,7 +6,10 @@ import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { useForm } from "react-hook-form";
 
-import { saveWorkoutLog, type CalendarActionResult } from "@/app/calendar/actions";
+import {
+  saveWorkoutLog,
+  type CalendarActionResult
+} from "@/app/calendar/actions";
 import {
   type WorkoutLogFormValues,
   workoutLogFormSchema
@@ -16,6 +19,8 @@ type WorkoutLogFormProps = {
   canReport: boolean;
   dateLabel: string;
   initialValues: WorkoutLogFormValues;
+  onCancel?: () => void;
+  onSaved?: () => void;
 };
 
 const inputClass =
@@ -34,7 +39,9 @@ function FieldError({ message }: { message?: string }) {
 export function WorkoutLogForm({
   canReport,
   dateLabel,
-  initialValues
+  initialValues,
+  onCancel,
+  onSaved
 }: WorkoutLogFormProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -60,20 +67,26 @@ export function WorkoutLogForm({
       setResult(actionResult);
 
       if (actionResult.ok) {
+        onSaved?.();
         router.refresh();
       }
     });
   };
 
   return (
-    <form className="rounded-lg border border-line bg-panel p-5" onSubmit={handleSubmit(onSubmit)}>
+    <form
+      className="rounded-lg border border-line bg-panel p-5"
+      onSubmit={handleSubmit(onSubmit)}
+    >
       <input type="hidden" {...register("workoutLogId")} />
       <input type="hidden" {...register("trainingDayId")} />
       <input type="hidden" {...register("userProfileId")} />
       <input type="hidden" {...register("logDate")} />
 
       <div className="border-b border-line pb-4">
-        <h3 className="font-semibold text-foreground">訓練完成紀錄</h3>
+        <h3 className="font-semibold text-foreground">
+          {initialValues.workoutLogId ? "編輯實際訓練紀錄" : "訓練完成紀錄"}
+        </h3>
         <p className="mt-1 text-sm leading-6 text-muted">
           回報當日實際完成狀況。若有明顯疼痛或疲勞偏高，建議先降低強度並觀察身體狀態。
         </p>
@@ -82,7 +95,9 @@ export function WorkoutLogForm({
       <div className="mt-5 grid gap-4 md:grid-cols-3">
         <div className="rounded-md border border-line bg-background p-3">
           <p className="text-xs font-semibold text-muted">回報日期</p>
-          <p className="mt-2 text-sm font-medium text-foreground">{dateLabel}</p>
+          <p className="mt-2 text-sm font-medium text-foreground">
+            {dateLabel}
+          </p>
           <p className="mt-1 text-xs leading-5 text-muted">
             回報日期固定為月曆選定日期，不能手動修改。
           </p>
@@ -91,7 +106,11 @@ export function WorkoutLogForm({
 
         <label className={labelClass}>
           完成狀態
-          <select className={inputClass} disabled={!canReport || isPending} {...register("completionStatus")}>
+          <select
+            className={inputClass}
+            disabled={!canReport || isPending}
+            {...register("completionStatus")}
+          >
             <option value="completed">已完成</option>
             <option value="partial">部分完成</option>
             <option value="missed">未完成</option>
@@ -214,14 +233,26 @@ export function WorkoutLogForm({
               ? "儲存後會更新月曆上的完成狀態。"
               : "未來的訓練規劃不可回報，請等訓練日當天或之後再填寫。")}
         </p>
-        <button
-          className="inline-flex items-center justify-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-semibold text-white transition hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-60"
-          disabled={!canReport || isPending}
-          type="submit"
-        >
-          <Save size={16} />
-          {isPending ? "儲存中" : "儲存訓練紀錄"}
-        </button>
+        <div className="flex flex-wrap justify-end gap-2">
+          {onCancel ? (
+            <button
+              className="rounded-md border border-line bg-background px-4 py-2 text-sm font-semibold text-foreground"
+              disabled={isPending}
+              onClick={onCancel}
+              type="button"
+            >
+              取消
+            </button>
+          ) : null}
+          <button
+            className="inline-flex items-center justify-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-semibold text-white transition hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-60"
+            disabled={!canReport || isPending}
+            type="submit"
+          >
+            <Save size={16} />
+            {isPending ? "儲存中" : "儲存訓練紀錄"}
+          </button>
+        </div>
       </div>
     </form>
   );

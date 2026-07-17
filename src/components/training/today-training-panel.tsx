@@ -1,4 +1,7 @@
-import { Activity, CalendarCheck, Footprints, Timer } from "lucide-react";
+"use client";
+
+import { CalendarCheck, Footprints, Timer } from "lucide-react";
+import { useState } from "react";
 
 import type { DailyLogAiFormValues } from "@/app/calendar/ai-log-actions";
 import {
@@ -14,7 +17,10 @@ import {
   NutritionSuggestionPanel,
   type NutritionSuggestionPanelData
 } from "@/components/training/nutrition-suggestion-panel";
-import { WorkoutLogForm } from "@/components/training/workout-log-form";
+import {
+  WorkoutLogManager,
+  type WorkoutLogManagerItem
+} from "@/components/training/workout-log-manager";
 import {
   emptyFoodLogValues,
   type FoodLogFormValues
@@ -24,22 +30,7 @@ import {
   type WorkoutLogFormValues
 } from "@/schemas/forms/workout-log";
 
-export type LatestWorkoutLog = {
-  id: string;
-  trainingDayId: string | null;
-  logDate: string;
-  rawInput: string;
-  workoutType: string | null;
-  distanceKm: number | null;
-  durationMin: number | null;
-  pace: string | null;
-  heartRateAvg: number | null;
-  fatigueScore: number | null;
-  painLocation: string | null;
-  painScore: number | null;
-  completionStatus: string | null;
-  isFromCurrentTrainingDay: boolean;
-};
+export type LatestWorkoutLog = WorkoutLogManagerItem;
 
 export type FoodLogListItem = FoodLogManagerItem;
 
@@ -70,6 +61,12 @@ type TodayTrainingPanelProps = {
   day: TodayTrainingDay | null;
   title?: string;
   emptyMessage?: string;
+};
+
+type RecentlyCreatedRecords = {
+  trainingDayId: string;
+  workoutLogIds: string[];
+  foodLogIds: string[];
 };
 
 const valueOrEmpty = (value: string | number | null | undefined) =>
@@ -105,7 +102,9 @@ const toWorkoutLogValues = (day: TodayTrainingDay): WorkoutLogFormValues => {
     trainingDayId: log?.trainingDayId ?? day.id,
     userProfileId: day.userProfileId,
     logDate: log?.logDate ?? day.date,
-    completionStatus: toCompletionStatus(log?.completionStatus ?? day.completionStatus),
+    completionStatus: toCompletionStatus(
+      log?.completionStatus ?? day.completionStatus
+    ),
     workoutType: log?.workoutType ?? day.trainingType,
     distanceKm: toNumberText(log?.distanceKm),
     durationMin: toNumberText(log?.durationMin),
@@ -135,64 +134,6 @@ const toDailyLogAiValues = (day: TodayTrainingDay): DailyLogAiFormValues => ({
   text: ""
 });
 
-function LatestWorkoutSummary({ log }: { log: LatestWorkoutLog | null }) {
-  if (!log) {
-    return (
-      <div className="rounded-lg border border-line bg-panel p-4">
-        <div className="flex items-center gap-2">
-          <Activity size={16} className="text-primary" />
-          <h3 className="font-semibold text-foreground">實際訓練紀錄</h3>
-        </div>
-        <p className="mt-2 text-sm leading-6 text-muted">
-          尚未記錄這一天的實際訓練結果。
-        </p>
-      </div>
-    );
-  }
-
-  return (
-    <div className="rounded-lg border border-line bg-panel p-4">
-      <div className="flex items-center gap-2">
-        <Activity size={16} className="text-primary" />
-        <h3 className="font-semibold text-foreground">實際訓練紀錄</h3>
-        {!log.isFromCurrentTrainingDay ? (
-          <span className="rounded-md bg-accent/10 px-2 py-1 text-xs font-semibold text-accent">
-            建立於舊版計畫
-          </span>
-        ) : null}
-      </div>
-      <div className="mt-4 grid gap-3 md:grid-cols-4">
-        <div className="rounded-md border border-line bg-background p-3">
-          <p className="text-xs font-semibold text-muted">距離</p>
-          <p className="mt-2 text-sm text-foreground">
-            {log.distanceKm ? `${log.distanceKm} km` : "未提供"}
-          </p>
-        </div>
-        <div className="rounded-md border border-line bg-background p-3">
-          <p className="text-xs font-semibold text-muted">時間</p>
-          <p className="mt-2 text-sm text-foreground">
-            {log.durationMin ? `${log.durationMin} 分鐘` : "未提供"}
-          </p>
-        </div>
-        <div className="rounded-md border border-line bg-background p-3">
-          <p className="text-xs font-semibold text-muted">疲勞</p>
-          <p className="mt-2 text-sm text-foreground">{valueOrEmpty(log.fatigueScore)}</p>
-        </div>
-        <div className="rounded-md border border-line bg-background p-3">
-          <p className="text-xs font-semibold text-muted">疼痛</p>
-          <p className="mt-2 text-sm text-foreground">
-            {valueOrEmpty(log.painScore)}
-            {log.painLocation ? ` / ${log.painLocation}` : ""}
-          </p>
-        </div>
-      </div>
-      <p className="mt-3 rounded-md border border-line bg-background p-3 text-sm leading-6 text-muted">
-        {log.rawInput}
-      </p>
-    </div>
-  );
-}
-
 export function TodayTrainingPanel({
   canReport,
   dateLabel,
@@ -200,6 +141,9 @@ export function TodayTrainingPanel({
   title = "今日任務",
   emptyMessage = "這一天沒有安排訓練。若這不是預期結果，請回到訓練計畫確認目前使用版本的日期範圍。"
 }: TodayTrainingPanelProps) {
+  const [recentlyCreated, setRecentlyCreated] =
+    useState<RecentlyCreatedRecords | null>(null);
+
   if (!day) {
     return (
       <section className="rounded-lg border border-line bg-panel p-5">
@@ -218,6 +162,9 @@ export function TodayTrainingPanel({
       </section>
     );
   }
+
+  const currentRecentlyCreated =
+    recentlyCreated?.trainingDayId === day.id ? recentlyCreated : null;
 
   return (
     <section className="space-y-4">
@@ -251,13 +198,16 @@ export function TodayTrainingPanel({
               時間
             </div>
             <p className="mt-2 text-sm text-foreground">
-              {day.targetDurationMin ? `${day.targetDurationMin} 分鐘` : "未提供"}
+              {day.targetDurationMin
+                ? `${day.targetDurationMin} 分鐘`
+                : "未提供"}
             </p>
           </div>
           <div className="rounded-md border border-line bg-background p-3">
             <p className="text-xs font-semibold text-muted">強度 / 配速</p>
             <p className="mt-2 text-sm text-foreground">
-              {valueOrEmpty(day.targetIntensity)} / {valueOrEmpty(day.targetPace)}
+              {valueOrEmpty(day.targetIntensity)} /{" "}
+              {valueOrEmpty(day.targetPace)}
             </p>
           </div>
         </div>
@@ -294,6 +244,14 @@ export function TodayTrainingPanel({
           canReport={canReport}
           dateLabel={dateLabel}
           initialValues={toDailyLogAiValues(day)}
+          onRecordsCreated={({ workoutLogIds, foodLogIds }) =>
+            setRecentlyCreated({
+              trainingDayId: day.id,
+              workoutLogIds,
+              foodLogIds
+            })
+          }
+          onSubmitStart={() => setRecentlyCreated(null)}
         />
       ) : null}
 
@@ -303,6 +261,21 @@ export function TodayTrainingPanel({
         createInitialValues={toFoodLogValues(day)}
         dateLabel={dateLabel}
         foodLogs={day.foodLogs}
+        highlightedFoodLogIds={currentRecentlyCreated?.foodLogIds ?? []}
+      />
+
+      <WorkoutLogManager
+        canReport={canReport}
+        dateLabel={dateLabel}
+        initialValues={toWorkoutLogValues(day)}
+        isNewlyCreated={
+          day.latestWorkoutLog
+            ? (currentRecentlyCreated?.workoutLogIds.includes(
+                day.latestWorkoutLog.id
+              ) ?? false)
+            : false
+        }
+        workoutLog={day.latestWorkoutLog}
       />
 
       <AiFeedbackPanel
@@ -311,19 +284,6 @@ export function TodayTrainingPanel({
         trainingDayId={day.id}
         userProfileId={day.userProfileId}
       />
-
-      {canReport ? (
-        <>
-          <LatestWorkoutSummary log={day.latestWorkoutLog} />
-          {day.latestWorkoutLog ? (
-            <WorkoutLogForm
-              canReport={canReport}
-              dateLabel={dateLabel}
-              initialValues={toWorkoutLogValues(day)}
-            />
-          ) : null}
-        </>
-      ) : null}
     </section>
   );
 }

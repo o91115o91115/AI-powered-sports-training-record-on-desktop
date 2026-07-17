@@ -22,6 +22,12 @@ export type DeleteFoodLogValues = {
   userProfileId: string;
 };
 
+export type DeleteWorkoutLogValues = {
+  workoutLogId: string;
+  trainingDayId: string;
+  userProfileId: string;
+};
+
 const toNullableText = (value?: string | null) => {
   const text = value?.trim();
   return text ? text : null;
@@ -95,7 +101,8 @@ function validateTrainingDayWrite(params: {
     };
   }
 
-  const ownerUserProfileId = trainingDay.trainingPlanVersion.trainingPlan.userProfileId;
+  const ownerUserProfileId =
+    trainingDay.trainingPlanVersion.trainingPlan.userProfileId;
   const trainingDayDate = toDateInput(trainingDay.date);
   const todayDate = toDateInput(new Date());
 
@@ -290,6 +297,82 @@ export async function saveFoodLog(
     return {
       ok: false,
       message: "飲食紀錄儲存失敗，請稍後再試。"
+    };
+  }
+}
+
+export async function deleteWorkoutLog(
+  values: DeleteWorkoutLogValues
+): Promise<CalendarActionResult> {
+  if (!values.workoutLogId || !values.trainingDayId || !values.userProfileId) {
+    return {
+      ok: false,
+      message: "缺少訓練紀錄資料，請重新整理後再試一次。"
+    };
+  }
+
+  try {
+    const workoutLog = await prisma.workoutLog.findFirst({
+      where: {
+        id: values.workoutLogId,
+        trainingDayId: values.trainingDayId,
+        userProfileId: values.userProfileId
+      },
+      select: {
+        id: true,
+        logDate: true,
+        trainingDayId: true
+      }
+    });
+
+    if (!workoutLog || !workoutLog.trainingDayId) {
+      return {
+        ok: false,
+        message: "找不到要刪除的訓練紀錄，請重新整理後再試一次。"
+      };
+    }
+
+    const trainingDayId = workoutLog.trainingDayId;
+
+    if (toDateInput(workoutLog.logDate) > toDateInput(new Date())) {
+      return {
+        ok: false,
+        message: "未來日期不可刪除訓練紀錄。"
+      };
+    }
+
+    await prisma.$transaction(async (tx) => {
+      await tx.workoutLog.delete({
+        where: { id: workoutLog.id }
+      });
+
+      // 刪除後以剩餘最新紀錄回復月曆狀態，沒有紀錄時回到未回報狀態。
+      const latestRemainingLog = await tx.workoutLog.findFirst({
+        where: { trainingDayId },
+        orderBy: { createdAt: "desc" },
+        select: { completionStatus: true }
+      });
+
+      await tx.trainingDay.update({
+        where: { id: trainingDayId },
+        data: {
+          completionStatus: latestRemainingLog?.completionStatus ?? "planned"
+        }
+      });
+    });
+
+    revalidatePath("/calendar");
+    revalidatePath("/dashboard");
+    revalidatePath("/history");
+
+    return {
+      ok: true,
+      message: "訓練紀錄已刪除。"
+    };
+  } catch {
+    return {
+      ok: false,
+      message: "訓練紀錄刪除失敗，請稍後再試。"
     };
   }
 }

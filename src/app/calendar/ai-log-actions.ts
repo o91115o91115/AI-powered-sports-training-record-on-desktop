@@ -39,10 +39,10 @@ export type ParsedNutritionSummary = {
 export type DailyLogAiActionResult = {
   ok: boolean;
   message: string;
-  createdWorkoutLog: boolean;
-  createdFoodLog: boolean;
-  parsedWorkout: ParsedWorkoutSummary | null;
-  parsedNutrition: ParsedNutritionSummary | null;
+  createdWorkoutLogCount: number;
+  createdFoodLogCount: number;
+  createdWorkoutLogIds: string[];
+  createdFoodLogIds: string[];
   missingInformation: string[];
   safetyNote: string | null;
 };
@@ -53,10 +53,10 @@ const emptyResult = (
 ): DailyLogAiActionResult => ({
   ok: false,
   message,
-  createdWorkoutLog: false,
-  createdFoodLog: false,
-  parsedWorkout: null,
-  parsedNutrition: null,
+  createdWorkoutLogCount: 0,
+  createdFoodLogCount: 0,
+  createdWorkoutLogIds: [],
+  createdFoodLogIds: [],
   missingInformation: [],
   safetyNote: null,
   ...overrides
@@ -76,7 +76,10 @@ const toNullableText = (value: string | null | undefined) => {
 };
 
 const buildNutritionRawInput = (nutrition: ParsedNutritionSummary) => {
-  const foodText = nutrition.foodItems.length > 0 ? nutrition.foodItems.join("、") : "AI 解析飲食紀錄";
+  const foodText =
+    nutrition.foodItems.length > 0
+      ? nutrition.foodItems.join("、")
+      : "AI 解析飲食紀錄";
   const note = toNullableText(nutrition.estimateNote);
 
   return note ? `${foodText}（${note}）` : foodText;
@@ -116,12 +119,15 @@ export async function saveAiDailyLog(
       return emptyResult("找不到對應的訓練日，請重新整理後再試一次。");
     }
 
-    const ownerUserProfileId = trainingDay.trainingPlanVersion.trainingPlan.userProfileId;
+    const ownerUserProfileId =
+      trainingDay.trainingPlanVersion.trainingPlan.userProfileId;
     const trainingDayDate = toDateInput(trainingDay.date);
     const todayDate = toDateInput(new Date());
 
     if (ownerUserProfileId !== data.userProfileId) {
-      return emptyResult("此紀錄與目前使用者資料不一致，請重新整理後再試一次。");
+      return emptyResult(
+        "此紀錄與目前使用者資料不一致，請重新整理後再試一次。"
+      );
     }
 
     if (data.logDate !== trainingDayDate) {
@@ -129,7 +135,9 @@ export async function saveAiDailyLog(
     }
 
     if (trainingDayDate > todayDate) {
-      return emptyResult("未來的規劃不可回報，請等訓練日當天或之後再新增紀錄。");
+      return emptyResult(
+        "未來的規劃不可回報，請等訓練日當天或之後再新增紀錄。"
+      );
     }
 
     // AI 只負責把自然語句轉成固定格式；可寫入日期與資料歸屬仍由後端驗證。
@@ -151,28 +159,31 @@ export async function saveAiDailyLog(
         }
       : null;
 
-    const parsedNutrition = aiResult.nutrition
-      ? {
-          mealType: aiResult.nutrition.mealType,
-          foodItems: aiResult.nutrition.foodItems,
-          estimatedCarbsG: aiResult.nutrition.estimatedCarbsG,
-          estimatedProteinG: aiResult.nutrition.estimatedProteinG,
-          estimatedCalories: aiResult.nutrition.estimatedCalories,
-          estimateNote: toNullableText(aiResult.nutrition.estimateNote)
-        }
-      : null;
+    const parsedNutritionEntries = aiResult.nutritionEntries.map(
+      (nutrition) => ({
+        mealType: nutrition.mealType,
+        foodItems: nutrition.foodItems,
+        estimatedCarbsG: nutrition.estimatedCarbsG,
+        estimatedProteinG: nutrition.estimatedProteinG,
+        estimatedCalories: nutrition.estimatedCalories,
+        estimateNote: toNullableText(nutrition.estimateNote)
+      })
+    );
 
-    if (!parsedWorkout && !parsedNutrition) {
-      return emptyResult("AI 沒有解析出可寫入的訓練或飲食內容，請補充距離、時間或餐點內容後再試一次。", {
-        missingInformation: aiResult.missingInformation,
-        safetyNote: aiResult.safetyNote
-      });
+    if (!parsedWorkout && parsedNutritionEntries.length === 0) {
+      return emptyResult(
+        "AI 沒有解析出可寫入的訓練或飲食內容，請補充距離、時間或餐點內容後再試一次。",
+        {
+          missingInformation: aiResult.missingInformation,
+          safetyNote: aiResult.safetyNote
+        }
+      );
     }
 
     const created = await prisma.$transaction(async (tx) => {
       let workoutLogId = trainingDay.workoutLogs[0]?.id ?? null;
-      let createdWorkoutLog = false;
-      let createdFoodLog = false;
+      const createdWorkoutLogIds: string[] = [];
+      const createdFoodLogIds: string[] = [];
 
       if (parsedWorkout) {
         const completionStatus = parsedWorkout.completionStatus ?? "completed";
@@ -200,42 +211,47 @@ export async function saveAiDailyLog(
         });
 
         workoutLogId = workoutLog.id;
-        createdWorkoutLog = true;
+        createdWorkoutLogIds.push(workoutLog.id);
       }
 
-      if (parsedNutrition) {
-        await tx.foodLog.create({
+      // 每個餐別或明確用餐時點各自保存，避免多餐營養數字被合併失真。
+      for (const nutrition of parsedNutritionEntries) {
+        const foodLog = await tx.foodLog.create({
           data: {
             userProfileId: data.userProfileId,
             trainingDayId: data.trainingDayId,
             workoutLogId,
             logDate: new Date(data.logDate),
-            rawInput: buildNutritionRawInput(parsedNutrition),
-            mealType: parsedNutrition.mealType,
-            foodItemsJson: JSON.stringify(parsedNutrition.foodItems),
-            estimatedCarbsG: parsedNutrition.estimatedCarbsG,
-            estimatedProteinG: parsedNutrition.estimatedProteinG,
-            estimatedCalories: parsedNutrition.estimatedCalories,
-            estimateNote: parsedNutrition.estimateNote
-          }
+            rawInput: buildNutritionRawInput(nutrition),
+            mealType: nutrition.mealType,
+            foodItemsJson: JSON.stringify(nutrition.foodItems),
+            estimatedCarbsG: nutrition.estimatedCarbsG,
+            estimatedProteinG: nutrition.estimatedProteinG,
+            estimatedCalories: nutrition.estimatedCalories,
+            estimateNote: nutrition.estimateNote
+          },
+          select: { id: true }
         });
 
-        createdFoodLog = true;
+        createdFoodLogIds.push(foodLog.id);
       }
 
-      return { createdWorkoutLog, createdFoodLog };
+      return { createdWorkoutLogIds, createdFoodLogIds };
     });
 
     revalidatePath("/calendar");
     revalidatePath("/dashboard");
 
+    const createdWorkoutLogCount = created.createdWorkoutLogIds.length;
+    const createdFoodLogCount = created.createdFoodLogIds.length;
+
     return {
       ok: true,
-      message: "AI 已解析並寫入本日紀錄。",
-      createdWorkoutLog: created.createdWorkoutLog,
-      createdFoodLog: created.createdFoodLog,
-      parsedWorkout,
-      parsedNutrition,
+      message: `本次新增：訓練紀錄 ${createdWorkoutLogCount} 筆、飲食紀錄 ${createdFoodLogCount} 筆。`,
+      createdWorkoutLogCount,
+      createdFoodLogCount,
+      createdWorkoutLogIds: created.createdWorkoutLogIds,
+      createdFoodLogIds: created.createdFoodLogIds,
       missingInformation: aiResult.missingInformation,
       safetyNote: aiResult.safetyNote
     };

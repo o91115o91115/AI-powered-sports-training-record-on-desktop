@@ -29,16 +29,17 @@ ${parsedInput.text}
 
 解析規則：
 1. 如果文字包含訓練完成情況，填入 workout；否則 workout 為 null。
-2. 如果文字包含飲食內容，填入 nutrition；否則 nutrition 為 null。
+2. 如果文字包含飲食內容，填入 nutritionEntries；否則 nutritionEntries 為空陣列。
 3. 原始文字由後端保存，不需要放入回傳 schema。
 4. completionStatus 只能使用 completed、partial、missed、changed、rest。
 5. mealType 只能使用 breakfast、lunch、dinner、pre_workout、post_workout、fuel、snack、other。
-6. nutrition.foodItems 要列出可辨識的餐點或食物名稱。
-7. 只要有可辨識的餐點或食物，請大概估算 estimatedCarbsG、estimatedProteinG、estimatedCalories。若使用者沒有提供份量，請依一般單份台灣常見份量保守估算，並在 estimateNote 說明「依一般份量粗估」與主要假設。
-8. 只有在食物內容過於模糊到無法判斷，例如「吃了一些東西」，才把營養數字填 null，並在 missingInformation 說明需要補充食物或份量。
-9. 飲食估算不可給極端節食或醫療建議；estimateNote 要提醒數值為粗估。
-10. 若提到疼痛、受傷、頭暈、胸悶、極度疲勞或其他風險，safetyNote 要提醒降低強度或尋求專業協助。
-11. 所有 string 欄位只能放繁體中文一般文字，不得夾雜英文句子、JSON 片段、markdown code block 或多餘括號；只有 completionStatus、mealType 等 schema enum/code、使用者原文、品牌名稱、食物原名或必要專有名詞可保留英文。`
+6. 依餐別或明確用餐時點拆分 nutritionEntries，例如早餐、午餐、跑前與跑後各自一筆；同一餐的不同食物放在同一筆，不要把每項食材拆成獨立紀錄。
+7. 每筆 nutritionEntries 的 foodItems 要列出該餐可辨識的餐點或食物名稱。
+8. 只要有可辨識的餐點或食物，請針對每一筆大概估算 estimatedCarbsG、estimatedProteinG、estimatedCalories。若使用者沒有提供份量，請依一般單份台灣常見份量保守估算，並在 estimateNote 說明「依一般份量粗估」與主要假設。
+9. 只有在食物內容過於模糊到無法判斷，例如「吃了一些東西」，才把該筆營養數字填 null，並在 missingInformation 說明需要補充食物或份量。
+10. 飲食估算不可給極端節食或醫療建議；每筆 estimateNote 都要提醒數值為粗估。
+11. 若提到疼痛、受傷、頭暈、胸悶、極度疲勞或其他風險，safetyNote 要提醒降低強度或尋求專業協助。
+12. 所有 string 欄位只能放繁體中文一般文字，不得夾雜英文句子、JSON 片段、markdown code block 或多餘括號；只有 completionStatus、mealType 等 schema enum/code、使用者原文、品牌名稱、食物原名或必要專有名詞可保留英文。`
       }
     ],
     response_format: zodResponseFormat(parsedDailyLogSchema, "parsed_daily_log")
