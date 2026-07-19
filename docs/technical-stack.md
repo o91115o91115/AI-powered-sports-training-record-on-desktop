@@ -17,6 +17,8 @@
 
 本專案採用單一 Next.js 專案，包含 React 頁面、Server Actions、少量 Route Handlers、資料庫存取與 AI 溝通邏輯。
 
+頁面資料主要由 Server Component 直接透過 Prisma 讀取；寫入操作集中於各功能的 Server Actions。計畫調整另以 `data.ts` 整理目前計畫、對話、草稿與差異資料，避免頁面元件直接組裝複雜查詢結果。
+
 ```text
 Browser
   |
@@ -179,7 +181,7 @@ pnpm add zod
 | vitest | 單元測試 |
 | playwright | 端對端測試與瀏覽器畫面驗證 |
 
-目前已設定 ESLint、Prettier、Vitest 與 Playwright；可分別執行 lint、單元測試與端對端測試。
+目前已設定 ESLint、Prettier、Vitest 與 Playwright。Vitest 已涵蓋訓練日期判斷、疑似重複運動紀錄、計畫調整對話正規化及每日 AI 紀錄 schema；Playwright 提供端對端測試環境。
 
 ## 9. 專案目錄
 
@@ -192,6 +194,8 @@ src/
     calendar/
     logs/
     adjustments/
+      actions.ts
+      data.ts
     history/
     api/
   components/
@@ -200,9 +204,12 @@ src/
     layout/
     training/
   lib/
+    plan-adjustment-conversation.ts
     prisma.ts
+    training-date.ts
     env.ts
     utils.ts
+    workout-duplicate.ts
   services/
     ai/
   schemas/

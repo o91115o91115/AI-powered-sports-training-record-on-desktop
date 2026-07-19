@@ -331,14 +331,14 @@ erDiagram
 
 ## 3.6 TrainingPlanConversation
 
-儲存 AI 訓練規劃或計畫調整對話的狀態、資訊完整度與風險層級。規劃對話可關聯訓練目標，調整對話則記錄所屬訓練計畫；產生草稿後再關聯唯一一筆 TrainingPlanVersion。
+儲存 AI 訓練規劃或計畫調整對話的狀態、資訊完整度與風險層級。規劃對話可關聯訓練目標，調整對話則以 `trainingPlanId` 記錄所屬訓練計畫；產生草稿後再關聯唯一一筆 TrainingPlanVersion。
 
 | 欄位 | 型別 | 說明 |
 | --- | --- | --- |
 | id | String | Primary key |
 | userProfileId | String | 關聯 UserProfile |
 | trainingGoalId | String | 可選，關聯 TrainingGoal |
-| trainingPlanId | String | 可選，計畫調整對話所屬的 TrainingPlan |
+| trainingPlanId | String | 可選，計畫調整對話所屬的 TrainingPlan ID；目前為邏輯識別欄位，未建立 Prisma relation |
 | conversationType | String | planning、adjustment，預設 planning |
 | generatedTrainingPlanVersionId | String | 可選且唯一，關聯此對話產生的 TrainingPlanVersion |
 | status | String | active、completed、archived，預設 active |
@@ -350,7 +350,7 @@ erDiagram
 
 ## 3.7 TrainingPlanConversationMessage
 
-依時間順序保存規劃對話訊息與 AI 結構化判斷，供後續繼續對話及產生訓練計畫。
+依時間順序保存規劃或調整對話訊息與 AI 結構化判斷，供後續繼續對話、產生訓練計畫或建立調整草稿。
 
 | 欄位 | 型別 | 說明 |
 | --- | --- | --- |
@@ -540,6 +540,7 @@ AI 對每日紀錄、每週狀態或計畫調整的分析回饋。
 6. 高風險傷痛或身體狀況可先存在 `AiFeedback.riskWarning`，後續再擴充獨立風險事件表。
 7. `TrainingPlanVersion` 以 `trainingPlanId` 與 `versionNumber` 組成唯一鍵，避免同一計畫出現重複版本號。
 8. 訓練日、每日紀錄、AI 回饋與規劃對話已建立常用查詢索引；刪除使用者或主計畫時採級聯刪除，刪除可選關聯資料時採 `SetNull` 保留紀錄。
+9. 調整對話透過 `trainingPlanId`、`conversationType`、`status` 與 `updatedAt` 複合索引查找目前對話；`trainingPlanId` 尚未設定資料庫外鍵，刪除計畫時需由應用程式維持一致性。
 
 ## 6. 後續可擴充 Table
 
