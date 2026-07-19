@@ -29,6 +29,10 @@ import {
   emptyWorkoutLogValues,
   type WorkoutLogFormValues
 } from "@/schemas/forms/workout-log";
+import {
+  getSportCategoryLabel,
+  toSportCategoryFormValue
+} from "@/lib/sport-category";
 
 export type WorkoutLogListItem = WorkoutLogManagerItem;
 
@@ -39,6 +43,7 @@ export type TodayTrainingDay = {
   trainingPlanId: string;
   userProfileId: string;
   date: string;
+  sportCategory: string | null;
   trainingType: string;
   trainingTypeLabel: string;
   targetDistanceKm: number | null;
@@ -108,6 +113,9 @@ const toWorkoutLogValues = (
     logDate: log?.logDate ?? day.date,
     completionStatus: toCompletionStatus(
       log?.completionStatus ?? day.completionStatus
+    ),
+    sportCategory: toSportCategoryFormValue(
+      log?.sportCategory ?? day.sportCategory
     ),
     workoutType: log?.workoutType ?? day.trainingType,
     distanceKm: toNumberText(log?.distanceKm),
@@ -180,6 +188,12 @@ export function TodayTrainingPanel({
             <h2 className="mt-1 text-lg font-semibold text-foreground">
               {day.trainingTypeLabel}
             </h2>
+            <p className="mt-1 text-sm text-muted">
+              運動分類：
+              {day.trainingType === "rest"
+                ? "休息日"
+                : getSportCategoryLabel(day.sportCategory)}
+            </p>
             <p className="mt-1 text-sm text-muted">{dateLabel}</p>
           </div>
           <span className="w-fit rounded-md bg-background px-3 py-1.5 text-xs font-medium text-muted">

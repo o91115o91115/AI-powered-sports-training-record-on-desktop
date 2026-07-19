@@ -1,8 +1,7 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
-
 import { prisma } from "@/lib/prisma";
+import { revalidateTrainingViews } from "@/lib/revalidate-training-views";
 import {
   type FoodLogFormValues,
   foodLogFormSchema
@@ -163,6 +162,10 @@ export async function saveWorkoutLog(
         trainingDayId: data.trainingDayId,
         logDate: new Date(data.logDate),
         rawInput: buildWorkoutRawInput(data),
+        sportCategory:
+          data.completionStatus === "rest"
+            ? null
+            : toNullableText(data.sportCategory),
         workoutType: toNullableText(data.workoutType),
         distanceKm: toNullableNumber(data.distanceKm),
         durationMin: toNullableInt(data.durationMin),
@@ -191,8 +194,7 @@ export async function saveWorkoutLog(
       });
     });
 
-    revalidatePath("/calendar");
-    revalidatePath("/dashboard");
+    revalidateTrainingViews();
 
     return {
       ok: true,
@@ -286,8 +288,7 @@ export async function saveFoodLog(
       });
     }
 
-    revalidatePath("/calendar");
-    revalidatePath("/dashboard");
+    revalidateTrainingViews();
 
     return {
       ok: true,
@@ -361,9 +362,7 @@ export async function deleteWorkoutLog(
       });
     });
 
-    revalidatePath("/calendar");
-    revalidatePath("/dashboard");
-    revalidatePath("/history");
+    revalidateTrainingViews();
 
     return {
       ok: true,
@@ -417,8 +416,7 @@ export async function deleteFoodLog(
       where: { id: foodLog.id }
     });
 
-    revalidatePath("/calendar");
-    revalidatePath("/dashboard");
+    revalidateTrainingViews();
 
     return {
       ok: true,

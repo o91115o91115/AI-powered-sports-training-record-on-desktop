@@ -124,6 +124,7 @@ model TrainingDay {
   id                    String               @id @default(cuid())
   trainingPlanVersionId String
   date                  DateTime
+  sportCategory         String?
   trainingType          String
   targetDistanceKm      Float?
   targetDurationMin     Int?
@@ -165,6 +166,7 @@ model WorkoutLog {
   trainingDayId    String?
   logDate          DateTime
   rawInput         String
+  sportCategory    String?
   workoutType      String?
   distanceKm       Float?
   durationMin      Int?

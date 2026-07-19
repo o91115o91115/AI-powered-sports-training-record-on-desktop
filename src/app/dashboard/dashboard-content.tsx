@@ -5,6 +5,10 @@ import {
   type DashboardChartData
 } from "@/components/dashboard/dashboard-charts";
 import { PageShell } from "@/components/layout/page-shell";
+import {
+  calculateWeeklyTrainingStats,
+  isRunningWorkout
+} from "@/lib/dashboard-weekly-stats";
 import { prisma } from "@/lib/prisma";
 
 const toDateInput = (value: Date | null | undefined) =>
@@ -33,10 +37,15 @@ const getWeekStart = (value: Date) => {
 };
 
 const getRecentWeekStarts = (currentWeekStart: Date, count: number) =>
-  Array.from({ length: count }, (_, index) => addDays(currentWeekStart, (index - count + 1) * 7));
+  Array.from({ length: count }, (_, index) =>
+    addDays(currentWeekStart, (index - count + 1) * 7)
+  );
 
-const isDateInputInRange = (dateInput: string, startInput: string, endInput: string) =>
-  dateInput >= startInput && dateInput <= endInput;
+const isDateInputInRange = (
+  dateInput: string,
+  startInput: string,
+  endInput: string
+) => dateInput >= startInput && dateInput <= endInput;
 
 const buildDashboardChartData = ({
   activeDays,
@@ -62,6 +71,8 @@ const buildDashboardChartData = ({
     fatigueScore: number | null;
     painScore: number | null;
     completionStatus: string | null;
+    sportCategory: string | null;
+    workoutType: string | null;
   }>;
 }): DashboardChartData => {
   const currentWeekStart = getWeekStart(today);
@@ -72,7 +83,15 @@ const buildDashboardChartData = ({
     const startInput = getLocalDateInput(weekStart);
     const endInput = getLocalDateInput(weekEnd);
     const distanceKm = workoutLogs
-      .filter((workoutLog) => isDateInputInRange(toDateInput(workoutLog.logDate), startInput, endInput))
+      .filter(
+        (workoutLog) =>
+          isDateInputInRange(
+            toDateInput(workoutLog.logDate),
+            startInput,
+            endInput
+          ) &&
+          isRunningWorkout(workoutLog.sportCategory, workoutLog.workoutType)
+      )
       .reduce((total, workoutLog) => total + (workoutLog.distanceKm ?? 0), 0);
 
     return {
@@ -123,7 +142,9 @@ const buildDashboardChartData = ({
 
   const thirtyDaysAgoInput = getLocalDateInput(addDays(today, -29));
   const fatiguePain = workoutLogs
-    .filter((workoutLog) => toDateInput(workoutLog.logDate) >= thirtyDaysAgoInput)
+    .filter(
+      (workoutLog) => toDateInput(workoutLog.logDate) >= thirtyDaysAgoInput
+    )
     .sort((first, second) => first.logDate.getTime() - second.logDate.getTime())
     .map((workoutLog) => ({
       date: toDateInput(workoutLog.logDate).slice(5),
@@ -144,13 +165,12 @@ const buildDashboardChartData = ({
       continue;
     }
 
-    const current =
-      nutritionByDate.get(dateInput) ?? {
-        calories: 0,
-        carbsG: 0,
-        date: dateInput.slice(5),
-        proteinG: 0
-      };
+    const current = nutritionByDate.get(dateInput) ?? {
+      calories: 0,
+      carbsG: 0,
+      date: dateInput.slice(5),
+      proteinG: 0
+    };
 
     current.carbsG += foodLog.estimatedCarbsG ?? 0;
     current.proteinG += foodLog.estimatedProteinG ?? 0;
@@ -225,7 +245,9 @@ export async function getDashboardData() {
     return null;
   }
 
-  const activeVersion = plan.versions.find((version) => version.id === plan.activeVersionId) ?? null;
+  const activeVersion =
+    plan.versions.find((version) => version.id === plan.activeVersionId) ??
+    null;
   const today = new Date();
   const todayDate = getLocalDateInput(today);
   const weekStart = getWeekStart(today);
@@ -234,11 +256,8 @@ export async function getDashboardData() {
   const weekEndInput = getLocalDateInput(weekEnd);
   const activeDays = activeVersion?.trainingDays ?? [];
   const activeDateSet = new Set(activeDays.map((day) => toDateInput(day.date)));
-  const thisWeekDays = activeDays.filter((day) => {
-    const dateInput = toDateInput(day.date);
-    return dateInput >= weekStartInput && dateInput <= weekEndInput;
-  });
-  const todayDay = activeDays.find((day) => toDateInput(day.date) === todayDate) ?? null;
+  const todayDay =
+    activeDays.find((day) => toDateInput(day.date) === todayDate) ?? null;
 
   const [workoutLogs, foodLogs, feedback, adjustments] = await Promise.all([
     activeVersion
@@ -286,16 +305,12 @@ export async function getDashboardData() {
     workoutLogsByDate.set(dateInput, dateLogs);
   }
 
-  const weekWorkoutLogs = workoutLogs.filter((workoutLog) => {
-    const dateInput = toDateInput(workoutLog.logDate);
-    return dateInput >= weekStartInput && dateInput <= weekEndInput;
+  const weeklyStats = calculateWeeklyTrainingStats({
+    endDate: weekEndInput,
+    startDate: weekStartInput,
+    trainingDays: activeDays,
+    workoutLogs
   });
-  const completedWeekDates = new Set(weekWorkoutLogs.map((workoutLog) => toDateInput(workoutLog.logDate)));
-  const plannedTrainingDays = thisWeekDays.filter((day) => day.trainingType !== "rest");
-  const weeklyDistanceKm = weekWorkoutLogs.reduce(
-    (total, workoutLog) => total + (workoutLog.distanceKm ?? 0),
-    0
-  );
   const highRiskWorkout = workoutLogs.find(
     (workoutLog) =>
       (workoutLog.painScore !== null && workoutLog.painScore >= 4) ||
@@ -305,7 +320,7 @@ export async function getDashboardData() {
     (item) => item.shouldReplan || Boolean(item.riskWarning?.trim())
   );
   const latestWorkoutLog = todayDay
-    ? workoutLogsByDate.get(toDateInput(todayDay.date))?.[0] ?? null
+    ? (workoutLogsByDate.get(toDateInput(todayDay.date))?.[0] ?? null)
     : null;
   const latestFeedback = feedback[0] ?? null;
 
@@ -330,7 +345,7 @@ export async function getDashboardData() {
         weekday: "long"
       }),
       trainingType: todayDay
-        ? trainingTypeLabels[todayDay.trainingType] ?? todayDay.trainingType
+        ? (trainingTypeLabels[todayDay.trainingType] ?? todayDay.trainingType)
         : "無訓練安排",
       description: todayDay?.description ?? "今天沒有目前計畫內的訓練內容。",
       targetDistanceKm: todayDay?.targetDistanceKm ?? null,
@@ -343,13 +358,10 @@ export async function getDashboardData() {
     },
     weekly: {
       range: `${weekStartInput} - ${weekEndInput}`,
-      plannedCount: plannedTrainingDays.length,
-      completedCount: completedWeekDates.size,
-      completionRate:
-        plannedTrainingDays.length > 0
-          ? Math.round((completedWeekDates.size / plannedTrainingDays.length) * 100)
-          : 0,
-      distanceKm: Number(weeklyDistanceKm.toFixed(1))
+      plannedCount: weeklyStats.plannedCount,
+      completedCount: weeklyStats.completedCount,
+      completionRate: weeklyStats.completionRate,
+      distanceKm: weeklyStats.distanceKm
     },
     risk: {
       hasRisk: Boolean(highRiskWorkout || highRiskFeedback),
@@ -380,7 +392,9 @@ export async function getDashboardData() {
       reasonType: adjustment.reasonType,
       status: adjustment.status,
       createdAt: formatDateTime(adjustment.createdAt),
-      newVersionLabel: adjustment.newVersion ? `V${adjustment.newVersion.versionNumber}` : "未產生新版"
+      newVersionLabel: adjustment.newVersion
+        ? `V${adjustment.newVersion.versionNumber}`
+        : "未產生新版"
     })),
     charts: buildDashboardChartData({
       activeDays,
@@ -409,7 +423,11 @@ function StatCard({
   );
 }
 
-export async function DashboardContent({ showHomeLink = true }: { showHomeLink?: boolean }) {
+export async function DashboardContent({
+  showHomeLink = true
+}: {
+  showHomeLink?: boolean;
+}) {
   const data = await getDashboardData();
 
   return (
@@ -421,7 +439,9 @@ export async function DashboardContent({ showHomeLink = true }: { showHomeLink?:
     >
       {!data ? (
         <section className="rounded-lg border border-line bg-panel p-5">
-          <h2 className="font-semibold text-foreground">目前沒有使用中的訓練計畫</h2>
+          <h2 className="font-semibold text-foreground">
+            目前沒有使用中的訓練計畫
+          </h2>
           <p className="mt-2 text-sm leading-6 text-muted">
             請先建立並套用訓練計畫，這裡才能彙整今日任務與近期狀態。
           </p>
@@ -432,7 +452,9 @@ export async function DashboardContent({ showHomeLink = true }: { showHomeLink?:
             <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
               <div>
                 <p className="text-sm font-semibold text-accent">目前計畫</p>
-                <h2 className="mt-1 text-xl font-semibold text-foreground">{data.plan.title}</h2>
+                <h2 className="mt-1 text-xl font-semibold text-foreground">
+                  {data.plan.title}
+                </h2>
                 <p className="mt-2 text-sm text-muted">{data.plan.goalLabel}</p>
               </div>
               <div className="text-sm text-muted md:text-right">
@@ -449,7 +471,7 @@ export async function DashboardContent({ showHomeLink = true }: { showHomeLink?:
               value={`${data.weekly.completionRate}%`}
             />
             <StatCard
-              detail={`已回報 ${data.weekly.completedCount} / ${data.weekly.plannedCount} 個訓練日`}
+              detail={`已完成 ${data.weekly.completedCount} / ${data.weekly.plannedCount} 個計畫訓練日`}
               label="訓練回報"
               value={`${data.weekly.completedCount}`}
             />
@@ -459,7 +481,9 @@ export async function DashboardContent({ showHomeLink = true }: { showHomeLink?:
               value={`${data.weekly.distanceKm} km`}
             />
             <StatCard
-              detail={data.risk.hasRisk ? "請優先檢查 AI 回饋" : "維持目前紀錄節奏"}
+              detail={
+                data.risk.hasRisk ? "請優先檢查 AI 回饋" : "維持目前紀錄節奏"
+              }
               label="風險狀態"
               value={data.risk.hasRisk ? "需注意" : "正常"}
             />
@@ -470,19 +494,25 @@ export async function DashboardContent({ showHomeLink = true }: { showHomeLink?:
           <section className="grid gap-4 lg:grid-cols-[1.3fr_0.7fr]">
             <div className="rounded-lg border border-line bg-panel p-5">
               <p className="text-sm font-semibold text-accent">Today</p>
-              <h2 className="mt-1 text-xl font-semibold text-foreground">{data.today.trainingType}</h2>
+              <h2 className="mt-1 text-xl font-semibold text-foreground">
+                {data.today.trainingType}
+              </h2>
               <p className="mt-2 text-sm text-muted">{data.today.label}</p>
               <div className="mt-4 grid gap-3 md:grid-cols-3">
                 <div className="rounded-md border border-line bg-background p-3">
                   <p className="text-xs font-semibold text-muted">距離</p>
                   <p className="mt-2 text-sm text-foreground">
-                    {data.today.targetDistanceKm ? `${data.today.targetDistanceKm} km` : "未提供"}
+                    {data.today.targetDistanceKm
+                      ? `${data.today.targetDistanceKm} km`
+                      : "未提供"}
                   </p>
                 </div>
                 <div className="rounded-md border border-line bg-background p-3">
                   <p className="text-xs font-semibold text-muted">時間</p>
                   <p className="mt-2 text-sm text-foreground">
-                    {data.today.targetDurationMin ? `${data.today.targetDurationMin} 分鐘` : "未提供"}
+                    {data.today.targetDurationMin
+                      ? `${data.today.targetDurationMin} 分鐘`
+                      : "未提供"}
                   </p>
                 </div>
                 <div className="rounded-md border border-line bg-background p-3">
@@ -502,23 +532,31 @@ export async function DashboardContent({ showHomeLink = true }: { showHomeLink?:
 
             <div className="rounded-lg border border-line bg-panel p-5">
               <h2 className="font-semibold text-foreground">AI 風險提醒</h2>
-              <p className={`mt-3 text-sm leading-6 ${data.risk.hasRisk ? "text-danger" : "text-muted"}`}>
+              <p
+                className={`mt-3 text-sm leading-6 ${data.risk.hasRisk ? "text-danger" : "text-muted"}`}
+              >
                 {data.risk.message}
               </p>
               {data.feedback ? (
                 <article className="mt-4 rounded-md border border-line bg-background p-3">
                   <div className="flex flex-wrap items-center gap-2">
-                    <span className="text-xs text-muted">{data.feedback.createdAt}</span>
+                    <span className="text-xs text-muted">
+                      {data.feedback.createdAt}
+                    </span>
                     {data.feedback.shouldReplan ? (
                       <span className="rounded-md bg-accent/10 px-2 py-1 text-xs font-semibold text-accent">
                         建議調整
                       </span>
                     ) : null}
                   </div>
-                  <p className="mt-2 text-sm leading-6 text-foreground">{data.feedback.summary}</p>
+                  <p className="mt-2 text-sm leading-6 text-foreground">
+                    {data.feedback.summary}
+                  </p>
                 </article>
               ) : (
-                <p className="mt-4 text-sm leading-6 text-muted">尚未產生 AI 回饋。</p>
+                <p className="mt-4 text-sm leading-6 text-muted">
+                  尚未產生 AI 回饋。
+                </p>
               )}
             </div>
           </section>
@@ -527,17 +565,26 @@ export async function DashboardContent({ showHomeLink = true }: { showHomeLink?:
             <div className="rounded-lg border border-line bg-panel p-5">
               <h2 className="font-semibold text-foreground">最近飲食紀錄</h2>
               {data.foodLogs.length === 0 ? (
-                <p className="mt-2 text-sm leading-6 text-muted">尚未有飲食紀錄。</p>
+                <p className="mt-2 text-sm leading-6 text-muted">
+                  尚未有飲食紀錄。
+                </p>
               ) : (
                 <div className="mt-4 space-y-3">
                   {data.foodLogs.slice(0, 5).map((foodLog) => (
-                    <article className="rounded-md border border-line bg-background p-3" key={foodLog.id}>
+                    <article
+                      className="rounded-md border border-line bg-background p-3"
+                      key={foodLog.id}
+                    >
                       <div className="flex flex-wrap items-center gap-2 text-xs text-muted">
                         <span>{foodLog.logDate}</span>
                         <span>{foodLog.mealType}</span>
-                        <span>{foodLog.estimatedCalories ?? "未估算"} kcal</span>
+                        <span>
+                          {foodLog.estimatedCalories ?? "未估算"} kcal
+                        </span>
                       </div>
-                      <p className="mt-2 text-sm leading-6 text-foreground">{foodLog.rawInput}</p>
+                      <p className="mt-2 text-sm leading-6 text-foreground">
+                        {foodLog.rawInput}
+                      </p>
                     </article>
                   ))}
                 </div>
@@ -547,17 +594,24 @@ export async function DashboardContent({ showHomeLink = true }: { showHomeLink?:
             <div className="rounded-lg border border-line bg-panel p-5">
               <h2 className="font-semibold text-foreground">最近計畫調整</h2>
               {data.adjustments.length === 0 ? (
-                <p className="mt-2 text-sm leading-6 text-muted">尚未建立調整草稿。</p>
+                <p className="mt-2 text-sm leading-6 text-muted">
+                  尚未建立調整草稿。
+                </p>
               ) : (
                 <div className="mt-4 space-y-3">
                   {data.adjustments.map((adjustment) => (
-                    <article className="rounded-md border border-line bg-background p-3" key={adjustment.id}>
+                    <article
+                      className="rounded-md border border-line bg-background p-3"
+                      key={adjustment.id}
+                    >
                       <div className="flex flex-wrap items-center gap-2 text-xs text-muted">
                         <span>{adjustment.createdAt}</span>
                         <span>{adjustment.status}</span>
                         <span>{adjustment.newVersionLabel}</span>
                       </div>
-                      <p className="mt-2 text-sm leading-6 text-foreground">{adjustment.reasonType}</p>
+                      <p className="mt-2 text-sm leading-6 text-foreground">
+                        {adjustment.reasonType}
+                      </p>
                     </article>
                   ))}
                 </div>
@@ -566,13 +620,22 @@ export async function DashboardContent({ showHomeLink = true }: { showHomeLink?:
           </section>
 
           <section className="grid gap-3 md:grid-cols-3">
-            <Link className="rounded-lg border border-line bg-panel p-4 text-sm font-semibold text-foreground transition hover:border-primary" href="/calendar">
+            <Link
+              className="rounded-lg border border-line bg-panel p-4 text-sm font-semibold text-foreground transition hover:border-primary"
+              href="/calendar"
+            >
               前往月曆
             </Link>
-            <Link className="rounded-lg border border-line bg-panel p-4 text-sm font-semibold text-foreground transition hover:border-primary" href="/adjustments">
+            <Link
+              className="rounded-lg border border-line bg-panel p-4 text-sm font-semibold text-foreground transition hover:border-primary"
+              href="/adjustments"
+            >
               訓練調整
             </Link>
-            <Link className="rounded-lg border border-line bg-panel p-4 text-sm font-semibold text-foreground transition hover:border-primary" href="/history">
+            <Link
+              className="rounded-lg border border-line bg-panel p-4 text-sm font-semibold text-foreground transition hover:border-primary"
+              href="/history"
+            >
               歷史紀錄
             </Link>
           </section>

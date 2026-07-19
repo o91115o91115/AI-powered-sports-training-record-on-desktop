@@ -1,9 +1,10 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
 import { prisma } from "@/lib/prisma";
+import { revalidateTrainingViews } from "@/lib/revalidate-training-views";
+import { inferSportCategory } from "@/lib/sport-category";
 import { findPossibleWorkoutDuplicate } from "@/lib/workout-duplicate";
 import { parseDailyLog } from "@/services/ai/logging-agent";
 
@@ -273,6 +274,10 @@ export async function saveAiDailyLog(
             trainingDayId: data.trainingDayId,
             logDate: new Date(data.logDate),
             rawInput: data.text.trim(),
+            sportCategory:
+              inferSportCategory(parsedWorkout.workoutType) ??
+              inferSportCategory(data.text) ??
+              trainingDay.sportCategory,
             workoutType: parsedWorkout.workoutType,
             distanceKm: parsedWorkout.distanceKm,
             durationMin: parsedWorkout.durationMin,
@@ -319,8 +324,7 @@ export async function saveAiDailyLog(
       return { createdWorkoutLogIds, createdFoodLogIds };
     });
 
-    revalidatePath("/calendar");
-    revalidatePath("/dashboard");
+    revalidateTrainingViews();
 
     const createdWorkoutLogCount = created.createdWorkoutLogIds.length;
     const createdFoodLogCount = created.createdFoodLogIds.length;

@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { sportCategories } from "@/lib/sport-category";
+
 const optionalText = z.string().trim().optional();
 const requiredText = (message: string) => z.string().trim().min(1, message);
 
@@ -57,32 +59,43 @@ export const trainingPlanVersionFormSchema = z.object({
   summary: requiredText("請輸入版本摘要")
 });
 
-export const trainingDayFormSchema = z.object({
-  trainingDayId: optionalText,
-  trainingPlanVersionId: requiredText("缺少計畫版本"),
-  date: requiredText("請選擇訓練日期").refine(
-    (value) => !Number.isNaN(Date.parse(value)),
-    {
-      message: "訓練日期格式不正確"
+export const trainingDayFormSchema = z
+  .object({
+    trainingDayId: optionalText,
+    trainingPlanVersionId: requiredText("缺少計畫版本"),
+    date: requiredText("請選擇訓練日期").refine(
+      (value) => !Number.isNaN(Date.parse(value)),
+      {
+        message: "訓練日期格式不正確"
+      }
+    ),
+    sportCategory: z.union([z.enum(sportCategories), z.literal("")]).optional(),
+    trainingType: requiredText("請選擇訓練類型"),
+    targetDistanceKm: optionalNumberText("目標距離", 0, 200),
+    targetDurationMin: optionalIntegerText("目標時間", 0, 1440),
+    targetPace: optionalText,
+    targetIntensity: optionalText,
+    description: optionalText,
+    notes: optionalText,
+    recoverySuggestion: optionalText,
+    carbSuggestion: optionalText,
+    proteinSuggestion: optionalText,
+    hydrationSuggestion: optionalText,
+    preWorkoutSuggestion: optionalText,
+    postWorkoutSuggestion: optionalText,
+    longRunFuelSuggestion: optionalText,
+    restDaySuggestion: optionalText,
+    estimateNote: optionalText
+  })
+  .superRefine((value, context) => {
+    if (value.trainingType !== "rest" && !value.sportCategory) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "請選擇運動分類",
+        path: ["sportCategory"]
+      });
     }
-  ),
-  trainingType: requiredText("請選擇訓練類型"),
-  targetDistanceKm: optionalNumberText("目標距離", 0, 200),
-  targetDurationMin: optionalIntegerText("目標時間", 0, 1440),
-  targetPace: optionalText,
-  targetIntensity: optionalText,
-  description: optionalText,
-  notes: optionalText,
-  recoverySuggestion: optionalText,
-  carbSuggestion: optionalText,
-  proteinSuggestion: optionalText,
-  hydrationSuggestion: optionalText,
-  preWorkoutSuggestion: optionalText,
-  postWorkoutSuggestion: optionalText,
-  longRunFuelSuggestion: optionalText,
-  restDaySuggestion: optionalText,
-  estimateNote: optionalText
-});
+  });
 
 export type TrainingPlanFormValues = z.infer<typeof trainingPlanFormSchema>;
 export type TrainingPlanVersionFormValues = z.infer<
@@ -102,6 +115,7 @@ export const emptyTrainingDayValues: TrainingDayFormValues = {
   trainingDayId: "",
   trainingPlanVersionId: "",
   date: "",
+  sportCategory: "",
   trainingType: "",
   targetDistanceKm: "",
   targetDurationMin: "",

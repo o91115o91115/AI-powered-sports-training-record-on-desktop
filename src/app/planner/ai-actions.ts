@@ -1,8 +1,8 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
-
 import { prisma } from "@/lib/prisma";
+import { revalidateTrainingViews } from "@/lib/revalidate-training-views";
+import { inferSportCategory } from "@/lib/sport-category";
 import {
   aiPlanningConversationSchema,
   type AiPlanningConversation,
@@ -111,7 +111,10 @@ const buildConversationSummary = (
 ) => {
   const facts = conversation.collectedFacts;
   const messageHistory = sanitizeMessages(messages)
-    .map((message) => `${message.role === "user" ? "使用者" : "AI"}：${message.content}`)
+    .map(
+      (message) =>
+        `${message.role === "user" ? "使用者" : "AI"}：${message.content}`
+    )
     .join("\n");
 
   // 對話摘要會併入最終課表 prompt 與 promptSnapshot，讓課表決策可追溯。
@@ -136,7 +139,9 @@ const parseConversationMetadata = (metadataJson: string | null | undefined) => {
   }
 
   try {
-    const parsed = aiPlanningConversationSchema.safeParse(JSON.parse(metadataJson));
+    const parsed = aiPlanningConversationSchema.safeParse(
+      JSON.parse(metadataJson)
+    );
     return parsed.success ? parsed.data : null;
   } catch {
     return null;
@@ -174,8 +179,12 @@ async function getOrCreateActiveConversation(
 }
 
 async function persistAiTrainingPlanDraft(
-  userProfile: Awaited<ReturnType<typeof getRequiredPlannerContext>>["userProfile"],
-  trainingGoal: Awaited<ReturnType<typeof getRequiredPlannerContext>>["trainingGoal"],
+  userProfile: Awaited<
+    ReturnType<typeof getRequiredPlannerContext>
+  >["userProfile"],
+  trainingGoal: Awaited<
+    ReturnType<typeof getRequiredPlannerContext>
+  >["trainingGoal"],
   aiResult: Awaited<ReturnType<typeof createTrainingPlanDraft>>
 ) {
   return prisma.$transaction(async (tx) => {
@@ -206,13 +215,18 @@ async function persistAiTrainingPlanDraft(
         data: {
           trainingPlanVersionId: version.id,
           date: parseAiDate(day.date),
+          sportCategory:
+            inferSportCategory(day.trainingType) ??
+            inferSportCategory(day.description),
           trainingType: day.trainingType,
           targetDistanceKm: day.targetDistanceKm,
           targetDurationMin: day.targetDurationMin,
           targetPace: day.targetPace,
           targetIntensity: day.targetIntensity,
           description: day.description,
-          notes: [day.notes, ...aiResult.draft.riskWarnings].filter(Boolean).join("\n"),
+          notes: [day.notes, ...aiResult.draft.riskWarnings]
+            .filter(Boolean)
+            .join("\n"),
           recoverySuggestion: day.recoverySuggestion,
           completionStatus: "planned"
         }
@@ -237,11 +251,6 @@ async function persistAiTrainingPlanDraft(
   });
 }
 
-const revalidatePlannerViews = () => {
-  revalidatePath("/planner");
-  revalidatePath("/calendar");
-};
-
 const getDraftSuccessMessage = (missingInformation: string[]) => {
   const missingInfo = missingInformation.length
     ? ` AI 也標示仍需補充：${missingInformation.join("、")}。`
@@ -254,7 +263,10 @@ export async function generateAiTrainingPlanDraft(): Promise<GenerateAiPlanDraft
   try {
     const { trainingGoal, userProfile } = await getRequiredPlannerContext();
 
-    if (!trainingGoal.currentWeeklyMileageKm || !trainingGoal.weeklyTrainingDays) {
+    if (
+      !trainingGoal.currentWeeklyMileageKm ||
+      !trainingGoal.weeklyTrainingDays
+    ) {
       return {
         ok: false,
         message: "目前訓練資料不足，請先補上目前週跑量與每週可訓練天數。"
@@ -267,7 +279,7 @@ export async function generateAiTrainingPlanDraft(): Promise<GenerateAiPlanDraft
     });
 
     await persistAiTrainingPlanDraft(userProfile, trainingGoal, aiResult);
-    revalidatePlannerViews();
+    revalidateTrainingViews();
 
     return {
       ok: true,
@@ -275,7 +287,10 @@ export async function generateAiTrainingPlanDraft(): Promise<GenerateAiPlanDraft
     };
   } catch (error) {
     if (error instanceof Error) {
-      if (error.message === "missing_profile" || error.message === "missing_goal") {
+      if (
+        error.message === "missing_profile" ||
+        error.message === "missing_goal"
+      ) {
         return {
           ok: false,
           message: "請先完成使用者基本資料與訓練目標，再產生 AI 計畫草稿。"
@@ -332,7 +347,8 @@ export async function sendTrainingPlanChatMessage(
       : await getOrCreateActiveConversation(userProfile.id, trainingGoal.id);
 
     const activeConversation =
-      conversation ?? (await getOrCreateActiveConversation(userProfile.id, trainingGoal.id));
+      conversation ??
+      (await getOrCreateActiveConversation(userProfile.id, trainingGoal.id));
 
     await prisma.trainingPlanConversationMessage.create({
       data: {
@@ -342,10 +358,11 @@ export async function sendTrainingPlanChatMessage(
       }
     });
 
-    const persistedMessages = await prisma.trainingPlanConversationMessage.findMany({
-      where: { conversationId: activeConversation.id },
-      orderBy: { createdAt: "asc" }
-    });
+    const persistedMessages =
+      await prisma.trainingPlanConversationMessage.findMany({
+        where: { conversationId: activeConversation.id },
+        orderBy: { createdAt: "asc" }
+      });
     const serializedMessages = serializeMessages(persistedMessages);
     const aiResult = await continueTrainingPlanConversation({
       messages: serializedMessages,
@@ -390,7 +407,10 @@ export async function sendTrainingPlanChatMessage(
     };
   } catch (error) {
     if (error instanceof Error) {
-      if (error.message === "missing_profile" || error.message === "missing_goal") {
+      if (
+        error.message === "missing_profile" ||
+        error.message === "missing_goal"
+      ) {
         return {
           ok: false,
           message: "請先完成使用者基本資料與訓練目標，再開始 AI 課表規劃對話。"
@@ -449,7 +469,7 @@ export async function restartTrainingPlanConversation(
       }
     });
 
-    revalidatePath("/planner");
+    revalidateTrainingViews();
 
     return {
       ok: true,
@@ -457,7 +477,10 @@ export async function restartTrainingPlanConversation(
     };
   } catch (error) {
     if (error instanceof Error) {
-      if (error.message === "missing_profile" || error.message === "missing_goal") {
+      if (
+        error.message === "missing_profile" ||
+        error.message === "missing_goal"
+      ) {
         return {
           ok: false,
           message: "請先完成使用者基本資料與訓練目標，再重新開始 AI 對話。"
@@ -484,20 +507,21 @@ export async function generateTrainingPlanFromConversation(
     }
 
     const { trainingGoal, userProfile } = await getRequiredPlannerContext();
-    const persistedConversation = await prisma.trainingPlanConversation.findFirst({
-      where: {
-        conversationType: "planning",
-        id: input.conversationId,
-        status: "active",
-        trainingGoalId: trainingGoal.id,
-        userProfileId: userProfile.id
-      },
-      include: {
-        messages: {
-          orderBy: { createdAt: "asc" }
+    const persistedConversation =
+      await prisma.trainingPlanConversation.findFirst({
+        where: {
+          conversationType: "planning",
+          id: input.conversationId,
+          status: "active",
+          trainingGoalId: trainingGoal.id,
+          userProfileId: userProfile.id
+        },
+        include: {
+          messages: {
+            orderBy: { createdAt: "asc" }
+          }
         }
-      }
-    });
+      });
 
     if (!persistedConversation) {
       return {
@@ -510,12 +534,14 @@ export async function generateTrainingPlanFromConversation(
       .reverse()
       .find((message) => message.role === "assistant");
     const latestConversation =
-      parseConversationMetadata(latestAssistantMessage?.metadataJson) ?? input.conversation;
+      parseConversationMetadata(latestAssistantMessage?.metadataJson) ??
+      input.conversation;
 
     if (!latestConversation) {
       return {
         ok: false,
-        message: "對話摘要尚未建立，請先送出一則訊息讓 AI 整理資料後再產生課表。"
+        message:
+          "對話摘要尚未建立，請先送出一則訊息讓 AI 整理資料後再產生課表。"
       };
     }
 
@@ -528,7 +554,8 @@ export async function generateTrainingPlanFromConversation(
 
     const messages = serializeMessages(persistedConversation.messages);
     const conversationSummary =
-      persistedConversation.summary ?? buildConversationSummary(messages, latestConversation);
+      persistedConversation.summary ??
+      buildConversationSummary(messages, latestConversation);
     const aiResult = await createTrainingPlanDraft({
       conversationSummary,
       trainingGoal,
@@ -550,7 +577,7 @@ export async function generateTrainingPlanFromConversation(
         summary: conversationSummary
       }
     });
-    revalidatePlannerViews();
+    revalidateTrainingViews();
 
     return {
       ok: true,
@@ -558,7 +585,10 @@ export async function generateTrainingPlanFromConversation(
     };
   } catch (error) {
     if (error instanceof Error) {
-      if (error.message === "missing_profile" || error.message === "missing_goal") {
+      if (
+        error.message === "missing_profile" ||
+        error.message === "missing_goal"
+      ) {
         return {
           ok: false,
           message: "請先完成使用者基本資料與訓練目標，再產生 AI 計畫草稿。"

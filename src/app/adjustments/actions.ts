@@ -1,13 +1,18 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
-
-import { getTaipeiDateInput, isFutureDateInput, parseDateInput, toDateInput } from "@/lib/training-date";
+import {
+  getTaipeiDateInput,
+  isFutureDateInput,
+  parseDateInput,
+  toDateInput
+} from "@/lib/training-date";
 import {
   getMeaningfulAdjustmentText,
   normalizePlanAdjustmentConversation
 } from "@/lib/plan-adjustment-conversation";
 import { prisma } from "@/lib/prisma";
+import { revalidateTrainingViews } from "@/lib/revalidate-training-views";
+import { inferSportCategory } from "@/lib/sport-category";
 import {
   aiPlanAdjustmentConversationSchema,
   generatePlanAdjustmentRequestSchema,
@@ -36,6 +41,7 @@ export type PlanAdjustmentChatActionResult = AdjustmentActionResult & {
 
 type ActiveTrainingDay = {
   date: Date;
+  sportCategory: string | null;
   trainingType: string;
   targetDistanceKm: number | null;
   targetDurationMin: number | null;
@@ -57,13 +63,9 @@ type ActiveTrainingDay = {
   } | null;
 };
 
-type PlanAdjustmentContext = Awaited<ReturnType<typeof getPlanAdjustmentContext>>;
-
-const revalidateAdjustmentViews = () => {
-  revalidatePath("/adjustments");
-  revalidatePath("/planner");
-  revalidatePath("/calendar");
-};
+type PlanAdjustmentContext = Awaited<
+  ReturnType<typeof getPlanAdjustmentContext>
+>;
 
 const serializeMessages = (
   messages: Array<{ role: string; content: string }>
@@ -84,7 +86,9 @@ const parseConversationMetadata = (metadataJson: string | null | undefined) => {
   if (!metadataJson) return null;
 
   try {
-    const parsed = aiPlanAdjustmentConversationSchema.safeParse(JSON.parse(metadataJson));
+    const parsed = aiPlanAdjustmentConversationSchema.safeParse(
+      JSON.parse(metadataJson)
+    );
     return parsed.success ? parsed.data : null;
   } catch {
     return null;
@@ -126,7 +130,9 @@ const getPlanAdjustmentContext = async (
     throw new Error("missing_active_plan");
   }
 
-  const activeVersion = plan.versions.find((version) => version.id === plan.activeVersionId);
+  const activeVersion = plan.versions.find(
+    (version) => version.id === plan.activeVersionId
+  );
 
   if (!activeVersion) {
     throw new Error("missing_active_version");
@@ -159,7 +165,10 @@ const getPlanAdjustmentContext = async (
       })
     : null;
   const feedback = sourceFeedback
-    ? [sourceFeedback, ...recentFeedback.filter((item) => item.id !== sourceFeedback.id)]
+    ? [
+        sourceFeedback,
+        ...recentFeedback.filter((item) => item.id !== sourceFeedback.id)
+      ]
     : recentFeedback;
 
   return { activeVersion, feedback, plan };
@@ -255,7 +264,10 @@ const buildConversationSummary = (
 
 最近對話：
 ${messages
-  .map((message) => `${message.role === "user" ? "使用者" : "AI"}：${message.content}`)
+  .map(
+    (message) =>
+      `${message.role === "user" ? "使用者" : "AI"}：${message.content}`
+  )
   .join("\n")}`;
 
 const getOrCreateAdjustmentConversation = async (
@@ -309,7 +321,10 @@ export async function sendPlanAdjustmentChatMessage(
   const parsed = planAdjustmentChatRequestSchema.safeParse(values);
 
   if (!parsed.success) {
-    return { ok: false, message: parsed.error.issues[0]?.message ?? "調整對話資料不完整。" };
+    return {
+      ok: false,
+      message: parsed.error.issues[0]?.message ?? "調整對話資料不完整。"
+    };
   }
 
   try {
@@ -334,10 +349,11 @@ export async function sendPlanAdjustmentChatMessage(
         role: "user"
       }
     });
-    const persistedMessages = await prisma.trainingPlanConversationMessage.findMany({
-      where: { conversationId: conversation.id },
-      orderBy: { createdAt: "asc" }
-    });
+    const persistedMessages =
+      await prisma.trainingPlanConversationMessage.findMany({
+        where: { conversationId: conversation.id },
+        orderBy: { createdAt: "asc" }
+      });
     const messages = serializeMessages(persistedMessages);
     const previousConversationStates = persistedMessages
       .filter((message) => message.role === "assistant")
@@ -377,7 +393,7 @@ export async function sendPlanAdjustmentChatMessage(
       });
     });
 
-    revalidateAdjustmentViews();
+    revalidateTrainingViews();
     return {
       ok: true,
       message: normalizedResult.assistantMessage,
@@ -412,7 +428,7 @@ export async function restartPlanAdjustmentConversation(
         data: { status: "discarded" }
       });
     }
-    revalidateAdjustmentViews();
+    revalidateTrainingViews();
     return { ok: true, message: "已放棄本次對話，可以重新描述調整方向。" };
   } catch {
     return { ok: false, message: "重新開始調整對話失敗，請稍後再試。" };
@@ -452,6 +468,10 @@ const mergeAdjustedTrainingDays = (
 
     return {
       completionStatus: adjusted ? "planned" : day.completionStatus,
+      sportCategory: adjusted
+        ? (inferSportCategory(adjusted.trainingType) ??
+          inferSportCategory(adjusted.description))
+        : day.sportCategory,
       trainingDay
     };
   });
@@ -492,11 +512,15 @@ export async function generatePlanAdjustmentFromConversation(
       latestAssistantMessage?.metadataJson
     );
 
-    if (!conversationState || conversationState.readiness === "needs_more_info") {
+    if (
+      !conversationState ||
+      conversationState.readiness === "needs_more_info"
+    ) {
       return {
         ok: false,
         message: `目前資訊還不足，請先補充：${
-          conversationState?.missingInformation.join("、") || "想調整的日期與方向"
+          conversationState?.missingInformation.join("、") ||
+          "想調整的日期與方向"
         }。`
       };
     }
@@ -508,7 +532,8 @@ export async function generatePlanAdjustmentFromConversation(
 
     const messages = serializeMessages(conversation.messages);
     const adjustmentRequest =
-      conversation.summary ?? buildConversationSummary(messages, conversationState);
+      conversation.summary ??
+      buildConversationSummary(messages, conversationState);
     const result = await createPlanAdjustmentDraft({
       ...agentContext,
       adjustmentRequest
@@ -518,8 +543,7 @@ export async function generatePlanAdjustmentFromConversation(
       agentContext.activeTrainingDays.map((day) => day.date)
     );
     const invalidAffectedDate = result.draft.affectedDates.find(
-      (date) =>
-        !isFutureDateInput(date, today) || !adjustableDateSet.has(date)
+      (date) => !isFutureDateInput(date, today) || !adjustableDateSet.has(date)
     );
     if (invalidAffectedDate) {
       throw new Error(
@@ -534,7 +558,10 @@ export async function generatePlanAdjustmentFromConversation(
       result.draft.adjustedPlan.trainingDays
     );
     if (!merged.changedDates.length) {
-      return { ok: false, message: "AI 未產生實際可辨識的未來課表變更，請補充調整方向後再試。" };
+      return {
+        ok: false,
+        message: "AI 未產生實際可辨識的未來課表變更，請補充調整方向後再試。"
+      };
     }
 
     await prisma.$transaction(async (tx) => {
@@ -561,6 +588,7 @@ export async function generatePlanAdjustmentFromConversation(
           data: {
             trainingPlanVersionId: newVersion.id,
             date: parseDateInput(day.date),
+            sportCategory: item.sportCategory,
             trainingType: day.trainingType,
             targetDistanceKm: day.targetDistanceKm,
             targetDurationMin: day.targetDurationMin,
@@ -604,15 +632,20 @@ export async function generatePlanAdjustmentFromConversation(
       });
     });
 
-    revalidateAdjustmentViews();
-    return { ok: true, message: "新版草稿已產生，請先查看與原版本的差異，再決定是否啟用。" };
+    revalidateTrainingViews();
+    return {
+      ok: true,
+      message: "新版草稿已產生，請先查看與原版本的差異，再決定是否啟用。"
+    };
   } catch (error) {
     const message =
       error instanceof Error && error.message.includes("OPENAI_API_KEY")
         ? "目前尚未完成 AI 服務設定，無法產生計畫調整草稿。"
-        : error instanceof Error && error.message.startsWith("adjusted_dates_not_future")
+        : error instanceof Error &&
+            error.message.startsWith("adjusted_dates_not_future")
           ? "AI 嘗試調整今天或過去日期，系統已阻止寫入，請重新產生。"
-          : error instanceof Error && error.message.startsWith("adjusted_dates_out_of_range")
+          : error instanceof Error &&
+              error.message.startsWith("adjusted_dates_out_of_range")
             ? "AI 回傳了不在目前計畫內的日期，系統未建立新版。"
             : "計畫調整草稿產生失敗，請稍後再試。";
     return { ok: false, message };
@@ -637,7 +670,10 @@ export async function confirmPlanAdjustment(
     });
 
     if (!adjustment?.newVersion) {
-      return { ok: false, message: "找不到要啟用的調整版本，請重新整理後再試一次。" };
+      return {
+        ok: false,
+        message: "找不到要啟用的調整版本，請重新整理後再試一次。"
+      };
     }
     if (adjustment.originalVersion.trainingPlan.status === "archived") {
       return { ok: false, message: "此訓練計畫已封存，不能再啟用調整版本。" };
@@ -658,7 +694,7 @@ export async function confirmPlanAdjustment(
       });
     });
 
-    revalidateAdjustmentViews();
+    revalidateTrainingViews();
     return { ok: true, message: "計畫調整已確認，新版本已啟用。" };
   } catch {
     return { ok: false, message: "計畫調整確認失敗，請稍後再試。" };

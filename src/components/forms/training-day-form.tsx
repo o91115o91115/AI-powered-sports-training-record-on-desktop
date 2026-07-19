@@ -15,6 +15,7 @@ import {
   type TrainingDayFormValues,
   trainingDayFormSchema
 } from "@/schemas/forms/training-plan";
+import { sportCategories, sportCategoryLabels } from "@/lib/sport-category";
 
 type TrainingDayFormProps = {
   canEdit: boolean;
@@ -35,7 +36,11 @@ function FieldError({ message }: { message?: string }) {
   return <p className={errorClass}>{message}</p>;
 }
 
-export function TrainingDayForm({ canEdit, initialValues, mode }: TrainingDayFormProps) {
+export function TrainingDayForm({
+  canEdit,
+  initialValues,
+  mode
+}: TrainingDayFormProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [result, setResult] = useState<PlannerActionResult | null>(null);
@@ -146,6 +151,23 @@ export function TrainingDayForm({ canEdit, initialValues, mode }: TrainingDayFor
             {...register("date")}
           />
           <FieldError message={errors.date?.message} />
+        </label>
+
+        <label className={labelClass}>
+          運動分類
+          <select
+            className={inputClass}
+            disabled={!canEdit || isPending}
+            {...register("sportCategory")}
+          >
+            <option value="">休息日或尚未分類</option>
+            {sportCategories.map((category) => (
+              <option key={category} value={category}>
+                {sportCategoryLabels[category]}
+              </option>
+            ))}
+          </select>
+          <FieldError message={errors.sportCategory?.message} />
         </label>
 
         <label className={labelClass}>

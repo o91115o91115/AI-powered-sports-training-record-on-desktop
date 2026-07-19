@@ -1,8 +1,7 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
-
 import { prisma } from "@/lib/prisma";
+import { revalidateTrainingViews } from "@/lib/revalidate-training-views";
 import {
   type GoalSettingsFormValues,
   goalSettingsFormSchema
@@ -102,7 +101,7 @@ export async function saveGoalSettings(
       await tx.trainingGoal.create({ data: goalData });
     });
 
-    revalidatePath("/goals");
+    revalidateTrainingViews();
 
     return {
       ok: true,

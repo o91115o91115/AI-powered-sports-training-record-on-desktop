@@ -3,6 +3,8 @@ import { redirect } from "next/navigation";
 import { DashboardContent } from "@/app/dashboard/dashboard-content";
 import { prisma } from "@/lib/prisma";
 
+export const dynamic = "force-dynamic";
+
 async function hasRequiredProfileAndGoal() {
   const profile = await prisma.userProfile.findFirst({
     include: {

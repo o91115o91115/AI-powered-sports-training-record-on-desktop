@@ -1,7 +1,10 @@
 import Link from "next/link";
 
 import { PageShell } from "@/components/layout/page-shell";
+import { getSportCategoryLabel } from "@/lib/sport-category";
 import { prisma } from "@/lib/prisma";
+
+export const dynamic = "force-dynamic";
 
 const formatDate = (value: Date | null | undefined) =>
   value
@@ -131,7 +134,9 @@ async function getHistoryData() {
     })
   ]);
 
-  const activeVersion = plan.versions.find((version) => version.id === plan.activeVersionId) ?? null;
+  const activeVersion =
+    plan.versions.find((version) => version.id === plan.activeVersionId) ??
+    null;
 
   return {
     plan: {
@@ -149,6 +154,7 @@ async function getHistoryData() {
       id: workoutLog.id,
       logDate: formatDate(workoutLog.logDate),
       rawInput: workoutLog.rawInput,
+      sportCategory: getSportCategoryLabel(workoutLog.sportCategory),
       workoutType: workoutLog.workoutType ?? "未分類",
       distanceKm: workoutLog.distanceKm,
       durationMin: workoutLog.durationMin,
@@ -164,7 +170,7 @@ async function getHistoryData() {
       logDate: formatDate(foodLog.logDate),
       rawInput: foodLog.rawInput,
       mealType: foodLog.mealType
-        ? mealTypeLabels[foodLog.mealType] ?? foodLog.mealType
+        ? (mealTypeLabels[foodLog.mealType] ?? foodLog.mealType)
         : "未分類",
       estimatedCarbsG: foodLog.estimatedCarbsG,
       estimatedProteinG: foodLog.estimatedProteinG,
@@ -198,7 +204,9 @@ async function getHistoryData() {
       status: adjustment.status,
       createdAt: formatDateTime(adjustment.createdAt),
       versionFlow: `V${adjustment.originalVersion.versionNumber} -> ${
-        adjustment.newVersion ? `V${adjustment.newVersion.versionNumber}` : "未產生新版"
+        adjustment.newVersion
+          ? `V${adjustment.newVersion.versionNumber}`
+          : "未產生新版"
       }`
     }))
   };
@@ -219,7 +227,9 @@ export default async function HistoryPage() {
     >
       {!data ? (
         <section className="rounded-lg border border-line bg-panel p-5">
-          <h2 className="font-semibold text-foreground">目前沒有使用中的訓練計畫</h2>
+          <h2 className="font-semibold text-foreground">
+            目前沒有使用中的訓練計畫
+          </h2>
           <p className="mt-2 text-sm leading-6 text-muted">
             請先建立並啟用訓練計畫，歷史頁才會依使用者資料彙整紀錄。
           </p>
@@ -230,10 +240,14 @@ export default async function HistoryPage() {
             <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
               <div>
                 <p className="text-sm font-semibold text-accent">目前計畫</p>
-                <h2 className="mt-1 text-xl font-semibold text-foreground">{data.plan.title}</h2>
+                <h2 className="mt-1 text-xl font-semibold text-foreground">
+                  {data.plan.title}
+                </h2>
                 <p className="mt-2 text-sm text-muted">{data.plan.goalLabel}</p>
               </div>
-              <p className="text-sm text-muted">{data.plan.activeVersionLabel}</p>
+              <p className="text-sm text-muted">
+                {data.plan.activeVersionLabel}
+              </p>
             </div>
           </section>
 
@@ -241,9 +255,14 @@ export default async function HistoryPage() {
             <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
               <div>
                 <h2 className="font-semibold text-foreground">實際訓練紀錄</h2>
-                <p className="mt-1 text-sm text-muted">最近 30 筆，依回報日期排序。</p>
+                <p className="mt-1 text-sm text-muted">
+                  最近 30 筆，依回報日期排序。
+                </p>
               </div>
-              <Link className="text-sm font-semibold text-primary" href="/calendar">
+              <Link
+                className="text-sm font-semibold text-primary"
+                href="/calendar"
+              >
                 回月曆新增紀錄
               </Link>
             </div>
@@ -252,13 +271,17 @@ export default async function HistoryPage() {
             ) : (
               <div className="mt-4 space-y-3">
                 {data.workoutLogs.map((workoutLog) => (
-                  <article className="rounded-md border border-line bg-background p-3" key={workoutLog.id}>
+                  <article
+                    className="rounded-md border border-line bg-background p-3"
+                    key={workoutLog.id}
+                  >
                     <div className="flex flex-wrap items-center gap-2 text-xs text-muted">
                       <span>{workoutLog.logDate}</span>
                       <span>{workoutLog.versionLabel}</span>
                       <span>{workoutLog.completionStatus}</span>
                     </div>
                     <div className="mt-3 grid gap-2 text-sm text-muted md:grid-cols-4">
+                      <p>分類：{workoutLog.sportCategory}</p>
                       <p>類型：{workoutLog.workoutType}</p>
                       <p>距離：{workoutLog.distanceKm ?? "未提供"} km</p>
                       <p>時間：{workoutLog.durationMin ?? "未提供"} 分鐘</p>
@@ -267,7 +290,9 @@ export default async function HistoryPage() {
                         {workoutLog.painScore ?? "未提供"}
                       </p>
                     </div>
-                    <p className="mt-3 text-sm leading-6 text-foreground">{workoutLog.rawInput}</p>
+                    <p className="mt-3 text-sm leading-6 text-foreground">
+                      {workoutLog.rawInput}
+                    </p>
                   </article>
                 ))}
               </div>
@@ -276,13 +301,18 @@ export default async function HistoryPage() {
 
           <section className="rounded-lg border border-line bg-panel p-5">
             <h2 className="font-semibold text-foreground">實際飲食紀錄</h2>
-            <p className="mt-1 text-sm text-muted">最近 30 筆，營養數值為估算。</p>
+            <p className="mt-1 text-sm text-muted">
+              最近 30 筆，營養數值為估算。
+            </p>
             {data.foodLogs.length === 0 ? (
               <EmptyState message="尚未有實際飲食紀錄。" />
             ) : (
               <div className="mt-4 space-y-3">
                 {data.foodLogs.map((foodLog) => (
-                  <article className="rounded-md border border-line bg-background p-3" key={foodLog.id}>
+                  <article
+                    className="rounded-md border border-line bg-background p-3"
+                    key={foodLog.id}
+                  >
                     <div className="flex flex-wrap items-center gap-2 text-xs text-muted">
                       <span>{foodLog.logDate}</span>
                       <span>{foodLog.mealType}</span>
@@ -293,7 +323,9 @@ export default async function HistoryPage() {
                       <p>蛋白質：{foodLog.estimatedProteinG ?? "未估算"} g</p>
                       <p>熱量：{foodLog.estimatedCalories ?? "未估算"} kcal</p>
                     </div>
-                    <p className="mt-3 text-sm leading-6 text-foreground">{foodLog.rawInput}</p>
+                    <p className="mt-3 text-sm leading-6 text-foreground">
+                      {foodLog.rawInput}
+                    </p>
                   </article>
                 ))}
               </div>
@@ -302,13 +334,18 @@ export default async function HistoryPage() {
 
           <section className="rounded-lg border border-line bg-panel p-5">
             <h2 className="font-semibold text-foreground">AI 回饋紀錄</h2>
-            <p className="mt-1 text-sm text-muted">最近 20 筆，包含每日回饋與調整相關回饋。</p>
+            <p className="mt-1 text-sm text-muted">
+              最近 20 筆，包含每日回饋與調整相關回饋。
+            </p>
             {data.feedback.length === 0 ? (
               <EmptyState message="尚未有 AI 回饋紀錄。" />
             ) : (
               <div className="mt-4 space-y-3">
                 {data.feedback.map((feedback) => (
-                  <article className="rounded-md border border-line bg-background p-3" key={feedback.id}>
+                  <article
+                    className="rounded-md border border-line bg-background p-3"
+                    key={feedback.id}
+                  >
                     <div className="flex flex-wrap items-center gap-2 text-xs text-muted">
                       <span>{feedback.createdAt}</span>
                       <span>{feedback.feedbackType}</span>
@@ -319,9 +356,13 @@ export default async function HistoryPage() {
                         </span>
                       ) : null}
                     </div>
-                    <p className="mt-3 text-sm leading-6 text-foreground">{feedback.summary}</p>
+                    <p className="mt-3 text-sm leading-6 text-foreground">
+                      {feedback.summary}
+                    </p>
                     {feedback.riskWarning ? (
-                      <p className="mt-2 text-sm leading-6 text-danger">{feedback.riskWarning}</p>
+                      <p className="mt-2 text-sm leading-6 text-danger">
+                        {feedback.riskWarning}
+                      </p>
                     ) : null}
                   </article>
                 ))}
@@ -333,9 +374,14 @@ export default async function HistoryPage() {
             <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
               <div>
                 <h2 className="font-semibold text-foreground">計畫調整紀錄</h2>
-                <p className="mt-1 text-sm text-muted">最近 20 筆，保留版本流向與調整摘要。</p>
+                <p className="mt-1 text-sm text-muted">
+                  最近 20 筆，保留版本流向與調整摘要。
+                </p>
               </div>
-              <Link className="text-sm font-semibold text-primary" href="/adjustments">
+              <Link
+                className="text-sm font-semibold text-primary"
+                href="/adjustments"
+              >
                 前往調整頁
               </Link>
             </div>
@@ -344,21 +390,32 @@ export default async function HistoryPage() {
             ) : (
               <div className="mt-4 space-y-3">
                 {data.adjustments.map((adjustment) => (
-                  <article className="rounded-md border border-line bg-background p-3" key={adjustment.id}>
+                  <article
+                    className="rounded-md border border-line bg-background p-3"
+                    key={adjustment.id}
+                  >
                     <div className="flex flex-wrap items-center gap-2 text-xs text-muted">
                       <span>{adjustment.createdAt}</span>
                       <span>{adjustment.status}</span>
                       <span>{adjustment.versionFlow}</span>
                     </div>
-                    <p className="mt-3 text-sm font-semibold text-foreground">{adjustment.reasonType}</p>
+                    <p className="mt-3 text-sm font-semibold text-foreground">
+                      {adjustment.reasonType}
+                    </p>
                     {adjustment.reasonDescription ? (
-                      <p className="mt-2 text-sm leading-6 text-muted">{adjustment.reasonDescription}</p>
+                      <p className="mt-2 text-sm leading-6 text-muted">
+                        {adjustment.reasonDescription}
+                      </p>
                     ) : null}
                     {adjustment.affectedDates ? (
-                      <p className="mt-2 text-xs text-muted">影響日期：{adjustment.affectedDates}</p>
+                      <p className="mt-2 text-xs text-muted">
+                        影響日期：{adjustment.affectedDates}
+                      </p>
                     ) : null}
                     {adjustment.afterSummary ? (
-                      <p className="mt-2 text-sm leading-6 text-foreground">{adjustment.afterSummary}</p>
+                      <p className="mt-2 text-sm leading-6 text-foreground">
+                        {adjustment.afterSummary}
+                      </p>
                     ) : null}
                   </article>
                 ))}

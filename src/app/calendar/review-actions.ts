@@ -1,8 +1,7 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
-
 import { prisma } from "@/lib/prisma";
+import { revalidateTrainingViews } from "@/lib/revalidate-training-views";
 import { reviewFeedbackInputSchema } from "@/schemas/ai/review-feedback";
 import { generateReviewFeedback } from "@/services/ai/review-agent";
 
@@ -84,7 +83,8 @@ export async function generateDailyReviewFeedback(
     if (!latestWorkoutLog && trainingDay.foodLogs.length === 0) {
       return {
         ok: false,
-        message: "目前沒有實際訓練或飲食紀錄，請先新增紀錄後再產生 AI 今日回饋。"
+        message:
+          "目前沒有實際訓練或飲食紀錄，請先新增紀錄後再產生 AI 今日回饋。"
       };
     }
 
@@ -147,8 +147,7 @@ export async function generateDailyReviewFeedback(
       }
     });
 
-    revalidatePath("/calendar");
-    revalidatePath("/dashboard");
+    revalidateTrainingViews();
 
     return {
       ok: true,

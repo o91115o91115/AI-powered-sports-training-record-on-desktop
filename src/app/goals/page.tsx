@@ -6,6 +6,8 @@ import {
   type GoalSettingsFormValues
 } from "@/schemas/forms/goal-settings";
 
+export const dynamic = "force-dynamic";
+
 const toText = (value: string | null | undefined) => value ?? "";
 const toNumberText = (value: number | null | undefined) =>
   value === null || value === undefined ? "" : String(value);

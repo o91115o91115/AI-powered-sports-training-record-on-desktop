@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { sportCategories } from "@/lib/sport-category";
+
 const optionalText = z.string().trim().optional();
 const requiredText = (message: string) => z.string().trim().min(1, message);
 
@@ -34,29 +36,40 @@ export const workoutCompletionStatuses = [
   "rest"
 ] as const;
 
-export const workoutLogFormSchema = z.object({
-  workoutLogId: optionalText,
-  trainingDayId: requiredText("缺少訓練日資料，請重新整理頁面後再試一次。"),
-  userProfileId: requiredText("缺少使用者資料，請先建立使用者設定。"),
-  logDate: requiredText("請選擇紀錄日期。").refine(
-    (value) => !Number.isNaN(Date.parse(value)),
-    {
-      message: "紀錄日期格式不正確。"
+export const workoutLogFormSchema = z
+  .object({
+    workoutLogId: optionalText,
+    trainingDayId: requiredText("缺少訓練日資料，請重新整理頁面後再試一次。"),
+    userProfileId: requiredText("缺少使用者資料，請先建立使用者設定。"),
+    logDate: requiredText("請選擇紀錄日期。").refine(
+      (value) => !Number.isNaN(Date.parse(value)),
+      {
+        message: "紀錄日期格式不正確。"
+      }
+    ),
+    completionStatus: z.enum(workoutCompletionStatuses, {
+      errorMap: () => ({ message: "請選擇完成狀態。" })
+    }),
+    sportCategory: z.union([z.enum(sportCategories), z.literal("")]).optional(),
+    workoutType: optionalText,
+    distanceKm: optionalNumberText("實際距離", 0, 200),
+    durationMin: optionalIntegerText("實際時間", 0, 1440),
+    pace: optionalText,
+    heartRateAvg: optionalIntegerText("平均心率", 0, 240),
+    fatigueScore: optionalIntegerText("疲勞分數", 1, 10),
+    painLocation: optionalText,
+    painScore: optionalIntegerText("疼痛分數", 0, 10),
+    rawInput: optionalText
+  })
+  .superRefine((value, context) => {
+    if (value.completionStatus !== "rest" && !value.sportCategory) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "請選擇運動分類。",
+        path: ["sportCategory"]
+      });
     }
-  ),
-  completionStatus: z.enum(workoutCompletionStatuses, {
-    errorMap: () => ({ message: "請選擇完成狀態。" })
-  }),
-  workoutType: optionalText,
-  distanceKm: optionalNumberText("實際距離", 0, 200),
-  durationMin: optionalIntegerText("實際時間", 0, 1440),
-  pace: optionalText,
-  heartRateAvg: optionalIntegerText("平均心率", 0, 240),
-  fatigueScore: optionalIntegerText("疲勞分數", 1, 10),
-  painLocation: optionalText,
-  painScore: optionalIntegerText("疼痛分數", 0, 10),
-  rawInput: optionalText
-});
+  });
 
 export type WorkoutLogFormValues = z.infer<typeof workoutLogFormSchema>;
 
@@ -66,6 +79,7 @@ export const emptyWorkoutLogValues: WorkoutLogFormValues = {
   userProfileId: "",
   logDate: "",
   completionStatus: "completed",
+  sportCategory: "",
   workoutType: "",
   distanceKm: "",
   durationMin: "",

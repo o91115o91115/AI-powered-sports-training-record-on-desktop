@@ -5,6 +5,8 @@ import {
 } from "@/components/training/training-calendar-view";
 import { prisma } from "@/lib/prisma";
 
+export const dynamic = "force-dynamic";
+
 const toDateInput = (value: Date | null | undefined) =>
   value ? value.toISOString().slice(0, 10) : "";
 
@@ -158,6 +160,7 @@ async function getCalendarPlan(): Promise<CalendarPlanData | null> {
               trainingPlanId: plan.id,
               userProfileId: plan.userProfileId,
               date: toDateInput(day.date),
+              sportCategory: day.sportCategory,
               trainingType: day.trainingType,
               trainingTypeLabel:
                 trainingTypeLabels[day.trainingType] ?? day.trainingType,
@@ -195,6 +198,7 @@ async function getCalendarPlan(): Promise<CalendarPlanData | null> {
                 trainingDayId: workoutLog.trainingDayId,
                 logDate: toDateInput(workoutLog.logDate),
                 rawInput: workoutLog.rawInput,
+                sportCategory: workoutLog.sportCategory,
                 workoutType: workoutLog.workoutType,
                 distanceKm: workoutLog.distanceKm,
                 durationMin: workoutLog.durationMin,

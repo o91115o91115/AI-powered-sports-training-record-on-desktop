@@ -9,6 +9,7 @@ import {
   type CalendarActionResult
 } from "@/app/calendar/actions";
 import { WorkoutLogForm } from "@/components/training/workout-log-form";
+import { getSportCategoryLabel } from "@/lib/sport-category";
 import type { WorkoutLogFormValues } from "@/schemas/forms/workout-log";
 
 export type WorkoutLogManagerItem = {
@@ -16,6 +17,7 @@ export type WorkoutLogManagerItem = {
   trainingDayId: string | null;
   logDate: string;
   rawInput: string;
+  sportCategory: string | null;
   workoutType: string | null;
   distanceKm: number | null;
   durationMin: number | null;
@@ -143,6 +145,9 @@ export function WorkoutLogManager({
         {workoutLog ? (
           <>
             <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+              <p className="text-sm text-foreground">
+                分類：{getSportCategoryLabel(workoutLog.sportCategory)}
+              </p>
               <p className="text-sm text-foreground">
                 類型：{valueOrEmpty(workoutLog.workoutType)}
               </p>

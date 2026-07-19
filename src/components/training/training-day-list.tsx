@@ -4,10 +4,15 @@ import {
   emptyTrainingDayValues,
   type TrainingDayFormValues
 } from "@/schemas/forms/training-plan";
+import {
+  getSportCategoryLabel,
+  toSportCategoryFormValue
+} from "@/lib/sport-category";
 
 export type TrainingDayListItem = {
   id: string;
   date: string;
+  sportCategory: string | null;
   trainingType: string;
   targetDistanceKm: number | null;
   targetDurationMin: number | null;
@@ -50,6 +55,7 @@ const toFormValues = (
     trainingDayId: day.id,
     trainingPlanVersionId,
     date: day.date,
+    sportCategory: toSportCategoryFormValue(day.sportCategory),
     trainingType: day.trainingType,
     targetDistanceKm: toNumberText(day.targetDistanceKm),
     targetDurationMin: toNumberText(day.targetDurationMin),
@@ -62,8 +68,12 @@ const toFormValues = (
     proteinSuggestion: toText(day.nutritionSuggestion?.proteinSuggestion),
     hydrationSuggestion: toText(day.nutritionSuggestion?.hydrationSuggestion),
     preWorkoutSuggestion: toText(day.nutritionSuggestion?.preWorkoutSuggestion),
-    postWorkoutSuggestion: toText(day.nutritionSuggestion?.postWorkoutSuggestion),
-    longRunFuelSuggestion: toText(day.nutritionSuggestion?.longRunFuelSuggestion),
+    postWorkoutSuggestion: toText(
+      day.nutritionSuggestion?.postWorkoutSuggestion
+    ),
+    longRunFuelSuggestion: toText(
+      day.nutritionSuggestion?.longRunFuelSuggestion
+    ),
     restDaySuggestion: toText(day.nutritionSuggestion?.restDaySuggestion),
     estimateNote: toText(day.nutritionSuggestion?.estimateNote)
   };
@@ -95,7 +105,9 @@ function TrainingDaySummary({ day }: { day: TrainingDayListItem }) {
           </h5>
         </div>
         <span className="w-fit rounded-md bg-background px-3 py-2 text-xs font-semibold text-muted">
-          訓練內容
+          {day.trainingType === "rest"
+            ? "休息日"
+            : getSportCategoryLabel(day.sportCategory)}
         </span>
       </div>
 
@@ -109,16 +121,22 @@ function TrainingDaySummary({ day }: { day: TrainingDayListItem }) {
         <div className="rounded-md border border-line bg-background p-3">
           <p className="text-xs font-semibold text-muted">目標時間</p>
           <p className="mt-2 text-sm text-foreground">
-            {day.targetDurationMin ? `${day.targetDurationMin} 分鐘` : "尚未填寫"}
+            {day.targetDurationMin
+              ? `${day.targetDurationMin} 分鐘`
+              : "尚未填寫"}
           </p>
         </div>
         <div className="rounded-md border border-line bg-background p-3">
           <p className="text-xs font-semibold text-muted">目標配速</p>
-          <p className="mt-2 text-sm text-foreground">{valueOrEmpty(day.targetPace)}</p>
+          <p className="mt-2 text-sm text-foreground">
+            {valueOrEmpty(day.targetPace)}
+          </p>
         </div>
         <div className="rounded-md border border-line bg-background p-3">
           <p className="text-xs font-semibold text-muted">訓練強度</p>
-          <p className="mt-2 text-sm text-foreground">{valueOrEmpty(day.targetIntensity)}</p>
+          <p className="mt-2 text-sm text-foreground">
+            {valueOrEmpty(day.targetIntensity)}
+          </p>
         </div>
       </div>
 
@@ -152,15 +170,14 @@ export function TrainingDayList({
   trainingPlanVersionId
 }: TrainingDayListProps) {
   // 同日期的多筆訓練放在同一折疊區塊，避免長週期計畫一次展開過多內容。
-  const trainingDaysByDate = trainingDays.reduce<Map<string, TrainingDayListItem[]>>(
-    (groups, day) => {
-      const items = groups.get(day.date) ?? [];
-      items.push(day);
-      groups.set(day.date, items);
-      return groups;
-    },
-    new Map()
-  );
+  const trainingDaysByDate = trainingDays.reduce<
+    Map<string, TrainingDayListItem[]>
+  >((groups, day) => {
+    const items = groups.get(day.date) ?? [];
+    items.push(day);
+    groups.set(day.date, items);
+    return groups;
+  }, new Map());
 
   return (
     <section className="mt-5 rounded-lg border border-line bg-background p-4">
@@ -188,14 +205,21 @@ export function TrainingDayList({
           </p>
         ) : (
           Array.from(trainingDaysByDate.entries()).map(([date, days]) => (
-            <details className="mt-3 rounded-lg border border-line bg-panel" key={date}>
+            <details
+              className="mt-3 rounded-lg border border-line bg-panel"
+              key={date}
+            >
               <summary className="cursor-pointer list-none px-4 py-3">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <div>
                     <p className="font-semibold text-foreground">{date}</p>
                     <p className="mt-1 text-xs text-muted">
                       {days
-                        .map((day) => trainingTypeLabels[day.trainingType] ?? day.trainingType)
+                        .map(
+                          (day) =>
+                            trainingTypeLabels[day.trainingType] ??
+                            day.trainingType
+                        )
                         .join("、")}
                     </p>
                   </div>
@@ -206,7 +230,10 @@ export function TrainingDayList({
               </summary>
               <div className="border-t border-line p-4">
                 {days.map((day) => (
-                  <article className="space-y-4 [&:not(:first-child)]:mt-4" key={day.id}>
+                  <article
+                    className="space-y-4 [&:not(:first-child)]:mt-4"
+                    key={day.id}
+                  >
                     {canEdit ? (
                       <TrainingDayForm
                         canEdit={canEdit}

@@ -1,8 +1,7 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
-
 import { prisma } from "@/lib/prisma";
+import { revalidateTrainingViews } from "@/lib/revalidate-training-views";
 import {
   type TrainingDayFormValues,
   type TrainingPlanFormValues,
@@ -23,6 +22,7 @@ export type TrainingPlanVersionDetailsResult =
       trainingDays: Array<{
         id: string;
         date: string;
+        sportCategory: string | null;
         trainingType: string;
         targetDistanceKm: number | null;
         targetDurationMin: number | null;
@@ -85,6 +85,7 @@ export async function getTrainingPlanVersionDetails(
       trainingDays: version.trainingDays.map((day) => ({
         id: day.id,
         date: day.date.toISOString().slice(0, 10),
+        sportCategory: day.sportCategory,
         trainingType: day.trainingType,
         targetDistanceKm: day.targetDistanceKm,
         targetDurationMin: day.targetDurationMin,
@@ -98,9 +99,12 @@ export async function getTrainingPlanVersionDetails(
               carbSuggestion: day.nutritionSuggestion.carbSuggestion,
               proteinSuggestion: day.nutritionSuggestion.proteinSuggestion,
               hydrationSuggestion: day.nutritionSuggestion.hydrationSuggestion,
-              preWorkoutSuggestion: day.nutritionSuggestion.preWorkoutSuggestion,
-              postWorkoutSuggestion: day.nutritionSuggestion.postWorkoutSuggestion,
-              longRunFuelSuggestion: day.nutritionSuggestion.longRunFuelSuggestion,
+              preWorkoutSuggestion:
+                day.nutritionSuggestion.preWorkoutSuggestion,
+              postWorkoutSuggestion:
+                day.nutritionSuggestion.postWorkoutSuggestion,
+              longRunFuelSuggestion:
+                day.nutritionSuggestion.longRunFuelSuggestion,
               restDaySuggestion: day.nutritionSuggestion.restDaySuggestion,
               estimateNote: day.nutritionSuggestion.estimateNote
             }
@@ -133,11 +137,6 @@ const toNullableInt = (value?: string) => {
 const toNullableDate = (value?: string) => {
   const text = value?.trim();
   return text ? new Date(text) : null;
-};
-
-const revalidatePlannerViews = () => {
-  revalidatePath("/planner");
-  revalidatePath("/calendar");
 };
 
 async function ensureDraftVersion(trainingPlanVersionId: string) {
@@ -181,7 +180,7 @@ export async function createTrainingPlan(
       }
     });
 
-    revalidatePlannerViews();
+    revalidateTrainingViews();
 
     return {
       ok: true,
@@ -207,7 +206,7 @@ export async function archiveTrainingPlan(
       }
     });
 
-    revalidatePlannerViews();
+    revalidateTrainingViews();
 
     return {
       ok: true,
@@ -253,7 +252,7 @@ export async function createTrainingPlanVersion(
       });
     });
 
-    revalidatePlannerViews();
+    revalidateTrainingViews();
 
     return {
       ok: true,
@@ -302,7 +301,7 @@ export async function confirmTrainingPlanVersion(
       });
     });
 
-    revalidatePlannerViews();
+    revalidateTrainingViews();
 
     return {
       ok: true,
@@ -325,7 +324,7 @@ export async function archiveTrainingPlanVersion(
       data: { status: "archived" }
     });
 
-    revalidatePlannerViews();
+    revalidateTrainingViews();
 
     return {
       ok: true,
@@ -360,6 +359,10 @@ export async function saveTrainingDay(
       const trainingDayData = {
         trainingPlanVersionId: data.trainingPlanVersionId,
         date: new Date(data.date),
+        sportCategory:
+          data.trainingType === "rest"
+            ? null
+            : toNullableText(data.sportCategory),
         trainingType: data.trainingType,
         targetDistanceKm: toNullableNumber(data.targetDistanceKm),
         targetDurationMin: toNullableInt(data.targetDurationMin),
@@ -404,7 +407,7 @@ export async function saveTrainingDay(
       });
     });
 
-    revalidatePlannerViews();
+    revalidateTrainingViews();
 
     return {
       ok: true,
@@ -435,7 +438,7 @@ export async function deleteTrainingDay(
       where: { id: trainingDayId }
     });
 
-    revalidatePlannerViews();
+    revalidateTrainingViews();
 
     return {
       ok: true,

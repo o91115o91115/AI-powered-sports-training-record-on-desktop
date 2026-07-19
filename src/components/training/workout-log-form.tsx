@@ -14,6 +14,7 @@ import {
   type WorkoutLogFormValues,
   workoutLogFormSchema
 } from "@/schemas/forms/workout-log";
+import { sportCategories, sportCategoryLabels } from "@/lib/sport-category";
 
 type WorkoutLogFormProps = {
   canReport: boolean;
@@ -118,6 +119,23 @@ export function WorkoutLogForm({
             <option value="rest">休息</option>
           </select>
           <FieldError message={errors.completionStatus?.message} />
+        </label>
+
+        <label className={labelClass}>
+          運動分類
+          <select
+            className={inputClass}
+            disabled={!canReport || isPending}
+            {...register("sportCategory")}
+          >
+            <option value="">休息或尚未分類</option>
+            {sportCategories.map((category) => (
+              <option key={category} value={category}>
+                {sportCategoryLabels[category]}
+              </option>
+            ))}
+          </select>
+          <FieldError message={errors.sportCategory?.message} />
         </label>
 
         <label className={labelClass}>
