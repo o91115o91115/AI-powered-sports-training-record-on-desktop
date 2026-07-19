@@ -60,7 +60,8 @@ async function getCalendarPlan(): Promise<CalendarPlanData | null> {
   }
 
   const activeVersion =
-    plan.versions.find((version) => version.id === plan.activeVersionId) ?? null;
+    plan.versions.find((version) => version.id === plan.activeVersionId) ??
+    null;
   const activeDateSet = new Set(
     activeVersion?.trainingDays.map((day) => toDateInput(day.date)) ?? []
   );
@@ -141,13 +142,16 @@ async function getCalendarPlan(): Promise<CalendarPlanData | null> {
             const dateInput = toDateInput(day.date);
             const dayWorkoutLogs = workoutLogsByDate.get(dateInput) ?? [];
             const dayFoodLogs = foodLogsByDate.get(dateInput) ?? [];
-            const latestWorkoutLog = dayWorkoutLogs[0] ?? null;
             const latestFeedback =
               [
-                ...(latestWorkoutLog?.aiFeedback ?? []),
+                ...dayWorkoutLogs.flatMap(
+                  (workoutLog) => workoutLog.aiFeedback
+                ),
                 ...dayFoodLogs.flatMap((foodLog) => foodLog.aiFeedback)
-              ].sort((first, second) => second.createdAt.getTime() - first.createdAt.getTime())[0] ??
-              null;
+              ].sort(
+                (first, second) =>
+                  second.createdAt.getTime() - first.createdAt.getTime()
+              )[0] ?? null;
 
             return {
               id: day.id,
@@ -155,7 +159,8 @@ async function getCalendarPlan(): Promise<CalendarPlanData | null> {
               userProfileId: plan.userProfileId,
               date: toDateInput(day.date),
               trainingType: day.trainingType,
-              trainingTypeLabel: trainingTypeLabels[day.trainingType] ?? day.trainingType,
+              trainingTypeLabel:
+                trainingTypeLabels[day.trainingType] ?? day.trainingType,
               targetDistanceKm: day.targetDistanceKm,
               targetDurationMin: day.targetDurationMin,
               targetPace: day.targetPace,
@@ -165,38 +170,42 @@ async function getCalendarPlan(): Promise<CalendarPlanData | null> {
               recoverySuggestion: day.recoverySuggestion,
               completionStatus: day.completionStatus,
               statusLabel:
-                completionStatusLabels[day.completionStatus] ?? day.completionStatus,
+                completionStatusLabels[day.completionStatus] ??
+                day.completionStatus,
               nutritionSuggestion: day.nutritionSuggestion
                 ? {
                     carbSuggestion: day.nutritionSuggestion.carbSuggestion,
-                    proteinSuggestion: day.nutritionSuggestion.proteinSuggestion,
-                    hydrationSuggestion: day.nutritionSuggestion.hydrationSuggestion,
-                    preWorkoutSuggestion: day.nutritionSuggestion.preWorkoutSuggestion,
-                    postWorkoutSuggestion: day.nutritionSuggestion.postWorkoutSuggestion,
+                    proteinSuggestion:
+                      day.nutritionSuggestion.proteinSuggestion,
+                    hydrationSuggestion:
+                      day.nutritionSuggestion.hydrationSuggestion,
+                    preWorkoutSuggestion:
+                      day.nutritionSuggestion.preWorkoutSuggestion,
+                    postWorkoutSuggestion:
+                      day.nutritionSuggestion.postWorkoutSuggestion,
                     longRunFuelSuggestion:
                       day.nutritionSuggestion.longRunFuelSuggestion,
-                    restDaySuggestion: day.nutritionSuggestion.restDaySuggestion,
+                    restDaySuggestion:
+                      day.nutritionSuggestion.restDaySuggestion,
                     estimateNote: day.nutritionSuggestion.estimateNote
                   }
                 : null,
-              latestWorkoutLog: latestWorkoutLog
-                ? {
-                    id: latestWorkoutLog.id,
-                    trainingDayId: latestWorkoutLog.trainingDayId,
-                    logDate: toDateInput(latestWorkoutLog.logDate),
-                    rawInput: latestWorkoutLog.rawInput,
-                    workoutType: latestWorkoutLog.workoutType,
-                    distanceKm: latestWorkoutLog.distanceKm,
-                    durationMin: latestWorkoutLog.durationMin,
-                    pace: latestWorkoutLog.pace,
-                    heartRateAvg: latestWorkoutLog.heartRateAvg,
-                    fatigueScore: latestWorkoutLog.fatigueScore,
-                    painLocation: latestWorkoutLog.painLocation,
-                    painScore: latestWorkoutLog.painScore,
-                    completionStatus: latestWorkoutLog.completionStatus,
-                    isFromCurrentTrainingDay: latestWorkoutLog.trainingDayId === day.id
-                  }
-                : null,
+              workoutLogs: dayWorkoutLogs.map((workoutLog) => ({
+                id: workoutLog.id,
+                trainingDayId: workoutLog.trainingDayId,
+                logDate: toDateInput(workoutLog.logDate),
+                rawInput: workoutLog.rawInput,
+                workoutType: workoutLog.workoutType,
+                distanceKm: workoutLog.distanceKm,
+                durationMin: workoutLog.durationMin,
+                pace: workoutLog.pace,
+                heartRateAvg: workoutLog.heartRateAvg,
+                fatigueScore: workoutLog.fatigueScore,
+                painLocation: workoutLog.painLocation,
+                painScore: workoutLog.painScore,
+                completionStatus: workoutLog.completionStatus,
+                isFromCurrentTrainingDay: workoutLog.trainingDayId === day.id
+              })),
               foodLogs: dayFoodLogs.map((foodLog) => ({
                 id: foodLog.id,
                 trainingDayId: foodLog.trainingDayId,
@@ -220,13 +229,16 @@ async function getCalendarPlan(): Promise<CalendarPlanData | null> {
                     riskWarning: latestFeedback.riskWarning,
                     nextStepSuggestion: latestFeedback.nextStepSuggestion,
                     shouldReplan: latestFeedback.shouldReplan,
-                    createdAt: latestFeedback.createdAt.toLocaleString("zh-TW", {
-                      year: "numeric",
-                      month: "2-digit",
-                      day: "2-digit",
-                      hour: "2-digit",
-                      minute: "2-digit"
-                    })
+                    createdAt: latestFeedback.createdAt.toLocaleString(
+                      "zh-TW",
+                      {
+                        year: "numeric",
+                        month: "2-digit",
+                        day: "2-digit",
+                        hour: "2-digit",
+                        minute: "2-digit"
+                      }
+                    )
                   }
                 : null
             };
@@ -253,7 +265,11 @@ export default async function CalendarPage() {
       title="訓練月曆"
       description="查看目前執行中的訓練計畫，並用年、月、週、日檢視整體安排。點擊日期後可查看當天完整訓練內容、營養建議與回報訓練結果。"
     >
-      <TrainingCalendarView plan={plan} todayDate={todayDate} todayLabel={todayLabel} />
+      <TrainingCalendarView
+        plan={plan}
+        todayDate={todayDate}
+        todayLabel={todayLabel}
+      />
     </PageShell>
   );
 }

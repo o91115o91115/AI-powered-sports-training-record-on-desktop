@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
 import { prisma } from "@/lib/prisma";
+import { findPossibleWorkoutDuplicate } from "@/lib/workout-duplicate";
 import { parseDailyLog } from "@/services/ai/logging-agent";
 
 const dailyLogAiFormSchema = z.object({
@@ -11,7 +12,8 @@ const dailyLogAiFormSchema = z.object({
   userProfileId: z.string().min(1),
   workoutLogId: z.string().optional(),
   logDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-  text: z.string().trim().min(1)
+  text: z.string().trim().min(1),
+  confirmPossibleDuplicate: z.boolean().optional()
 });
 
 export type DailyLogAiFormValues = z.infer<typeof dailyLogAiFormSchema>;
@@ -45,6 +47,13 @@ export type DailyLogAiActionResult = {
   createdFoodLogIds: string[];
   missingInformation: string[];
   safetyNote: string | null;
+  duplicateWarning: {
+    workoutLogId: string;
+    workoutType: string | null;
+    distanceKm: number | null;
+    durationMin: number | null;
+    pace: string | null;
+  } | null;
 };
 
 const emptyResult = (
@@ -59,6 +68,7 @@ const emptyResult = (
   createdFoodLogIds: [],
   missingInformation: [],
   safetyNote: null,
+  duplicateWarning: null,
   ...overrides
 });
 
@@ -84,6 +94,30 @@ const buildNutritionRawInput = (nutrition: ParsedNutritionSummary) => {
 
   return note ? `${foodText}（${note}）` : foodText;
 };
+
+type ExistingWorkoutLog = {
+  id: string;
+  rawInput: string;
+  workoutType: string | null;
+  distanceKm: number | null;
+  durationMin: number | null;
+  pace: string | null;
+};
+
+const buildDuplicateResult = (
+  workoutLog: ExistingWorkoutLog,
+  overrides: Partial<DailyLogAiActionResult> = {}
+) =>
+  emptyResult("當天已有高度相似的訓練紀錄，請確認這是否為另一個訓練時段。", {
+    duplicateWarning: {
+      workoutLogId: workoutLog.id,
+      workoutType: workoutLog.workoutType,
+      distanceKm: workoutLog.distanceKm,
+      durationMin: workoutLog.durationMin,
+      pace: workoutLog.pace
+    },
+    ...overrides
+  });
 
 export async function saveAiDailyLog(
   values: DailyLogAiFormValues
@@ -140,6 +174,32 @@ export async function saveAiDailyLog(
       );
     }
 
+    const existingWorkoutLogs = await prisma.workoutLog.findMany({
+      where: {
+        userProfileId: data.userProfileId,
+        logDate: new Date(data.logDate)
+      },
+      orderBy: { createdAt: "desc" },
+      select: {
+        id: true,
+        rawInput: true,
+        workoutType: true,
+        distanceKm: true,
+        durationMin: true,
+        pace: true
+      }
+    });
+
+    // 完全相同的輸入先提醒，避免重複呼叫 AI 後才發現是同一筆紀錄。
+    const sameInputLog = findPossibleWorkoutDuplicate(
+      { rawInput: data.text },
+      existingWorkoutLogs
+    );
+
+    if (sameInputLog && !data.confirmPossibleDuplicate) {
+      return buildDuplicateResult(sameInputLog);
+    }
+
     // AI 只負責把自然語句轉成固定格式；可寫入日期與資料歸屬仍由後端驗證。
     const aiResult = await parseDailyLog({
       text: data.text,
@@ -178,6 +238,26 @@ export async function saveAiDailyLog(
           safetyNote: aiResult.safetyNote
         }
       );
+    }
+
+    const similarWorkoutLog = parsedWorkout
+      ? findPossibleWorkoutDuplicate(
+          {
+            rawInput: data.text,
+            workoutType: parsedWorkout.workoutType,
+            distanceKm: parsedWorkout.distanceKm,
+            durationMin: parsedWorkout.durationMin,
+            pace: parsedWorkout.pace
+          },
+          existingWorkoutLogs
+        )
+      : null;
+
+    if (similarWorkoutLog && !data.confirmPossibleDuplicate) {
+      return buildDuplicateResult(similarWorkoutLog, {
+        missingInformation: aiResult.missingInformation,
+        safetyNote: aiResult.safetyNote
+      });
     }
 
     const created = await prisma.$transaction(async (tx) => {
@@ -253,7 +333,8 @@ export async function saveAiDailyLog(
       createdWorkoutLogIds: created.createdWorkoutLogIds,
       createdFoodLogIds: created.createdFoodLogIds,
       missingInformation: aiResult.missingInformation,
-      safetyNote: aiResult.safetyNote
+      safetyNote: aiResult.safetyNote,
+      duplicateWarning: null
     };
   } catch (error) {
     const message =

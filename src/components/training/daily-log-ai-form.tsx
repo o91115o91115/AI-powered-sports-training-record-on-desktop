@@ -34,14 +34,14 @@ export function DailyLogAiForm({
   const [text, setText] = useState(initialValues.text);
   const [result, setResult] = useState<DailyLogAiActionResult | null>(null);
 
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
+  const saveLog = (confirmPossibleDuplicate: boolean) => {
     setResult(null);
     onSubmitStart?.();
 
     const payload: DailyLogAiFormValues = {
       ...initialValues,
-      text
+      text,
+      confirmPossibleDuplicate
     };
 
     startTransition(async () => {
@@ -58,6 +58,26 @@ export function DailyLogAiForm({
       }
     });
   };
+
+  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    saveLog(false);
+  };
+
+  const duplicateSummary = result?.duplicateWarning
+    ? [
+        result.duplicateWarning.workoutType,
+        result.duplicateWarning.distanceKm !== null
+          ? `${result.duplicateWarning.distanceKm} km`
+          : null,
+        result.duplicateWarning.durationMin !== null
+          ? `${result.duplicateWarning.durationMin} 分鐘`
+          : null,
+        result.duplicateWarning.pace
+      ]
+        .filter(Boolean)
+        .join("、")
+    : null;
 
   return (
     <form
@@ -79,7 +99,10 @@ export function DailyLogAiForm({
       <textarea
         className="mt-4 min-h-28 w-full resize-y rounded-md border border-line bg-background px-3 py-2 text-sm leading-6 text-foreground outline-none transition focus:border-primary"
         disabled={!canReport || isPending}
-        onChange={(event) => setText(event.target.value)}
+        onChange={(event) => {
+          setText(event.target.value);
+          setResult(null);
+        }}
         placeholder="例：今天跑 8 公里 48 分鐘；早餐吃吐司和豆漿，跑後吃香蕉和飯糰，晚餐吃雞胸肉便當。"
         value={text}
       />
@@ -107,10 +130,32 @@ export function DailyLogAiForm({
           className={`mt-4 rounded-md border p-3 text-sm leading-6 ${
             result.ok
               ? "border-primary/30 bg-primary/10 text-foreground"
-              : "border-danger/30 bg-danger/10 text-danger"
+              : result.duplicateWarning
+                ? "border-accent/30 bg-accent/10 text-foreground"
+                : "border-danger/30 bg-danger/10 text-danger"
           }`}
         >
           <p className="font-semibold">{result.message}</p>
+
+          {result.duplicateWarning ? (
+            <div className="mt-3 rounded-md border border-accent/30 bg-background p-3 text-foreground">
+              <p>既有紀錄：{duplicateSummary || "訓練內容未完整標示"}</p>
+              <p className="mt-1 text-xs text-muted">
+                若這是不同時段的第二次訓練，仍可確認新增；若是同一筆，請修改上方內容或改用既有紀錄的編輯功能。
+              </p>
+              <button
+                className="mt-3 inline-flex items-center gap-2 rounded-md border border-accent px-3 py-2 text-xs font-semibold text-accent transition hover:bg-accent/10 disabled:cursor-not-allowed disabled:opacity-60"
+                disabled={isPending}
+                onClick={() => saveLog(true)}
+                type="button"
+              >
+                {isPending ? (
+                  <Loader2 className="animate-spin" size={14} />
+                ) : null}
+                仍新增為另一筆訓練
+              </button>
+            </div>
+          ) : null}
 
           {result.safetyNote ? (
             <p className="mt-3 rounded-md border border-danger/30 bg-background p-2 text-danger">

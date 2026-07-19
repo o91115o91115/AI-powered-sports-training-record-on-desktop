@@ -144,6 +144,9 @@ export function WorkoutLogManager({
           <>
             <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
               <p className="text-sm text-foreground">
+                類型：{valueOrEmpty(workoutLog.workoutType)}
+              </p>
+              <p className="text-sm text-foreground">
                 狀態：
                 {workoutLog.completionStatus
                   ? (completionStatusLabels[workoutLog.completionStatus] ??

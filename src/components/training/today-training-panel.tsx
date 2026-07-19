@@ -30,7 +30,7 @@ import {
   type WorkoutLogFormValues
 } from "@/schemas/forms/workout-log";
 
-export type LatestWorkoutLog = WorkoutLogManagerItem;
+export type WorkoutLogListItem = WorkoutLogManagerItem;
 
 export type FoodLogListItem = FoodLogManagerItem;
 
@@ -51,7 +51,7 @@ export type TodayTrainingDay = {
   completionStatus: string;
   statusLabel: string;
   nutritionSuggestion: NutritionSuggestionPanelData | null;
-  latestWorkoutLog: LatestWorkoutLog | null;
+  workoutLogs: WorkoutLogListItem[];
   foodLogs: FoodLogListItem[];
   latestAiFeedback: AiFeedbackPanelData | null;
 };
@@ -96,9 +96,10 @@ const toCompletionStatus = (
   return "completed";
 };
 
-const toWorkoutLogValues = (day: TodayTrainingDay): WorkoutLogFormValues => {
-  const log = day.latestWorkoutLog;
-
+const toWorkoutLogValues = (
+  day: TodayTrainingDay,
+  log: WorkoutLogListItem | null
+): WorkoutLogFormValues => {
   return {
     ...emptyWorkoutLogValues,
     workoutLogId: log?.id ?? "",
@@ -125,14 +126,14 @@ const toFoodLogValues = (day: TodayTrainingDay): FoodLogFormValues => ({
   foodLogId: "",
   trainingDayId: day.id,
   userProfileId: day.userProfileId,
-  workoutLogId: day.latestWorkoutLog?.id ?? "",
+  workoutLogId: day.workoutLogs[0]?.id ?? "",
   logDate: day.date
 });
 
 const toDailyLogAiValues = (day: TodayTrainingDay): DailyLogAiFormValues => ({
   trainingDayId: day.id,
   userProfileId: day.userProfileId,
-  workoutLogId: day.latestWorkoutLog?.id ?? "",
+  workoutLogId: day.workoutLogs[0]?.id ?? "",
   logDate: day.date,
   text: ""
 });
@@ -309,7 +310,7 @@ export function TodayTrainingPanel({
                 role="tab"
                 type="button"
               >
-                訓練紀錄 {day.latestWorkoutLog ? 1 : 0}
+                訓練紀錄 {day.workoutLogs.length}
                 {currentRecentlyCreated?.workoutLogIds.length ? " •" : ""}
               </button>
               <button
@@ -330,19 +331,31 @@ export function TodayTrainingPanel({
 
             <div className="mt-3" role="tabpanel">
               {activeRecordTab === "workout" ? (
-                <WorkoutLogManager
-                  canReport={canReport}
-                  dateLabel={dateLabel}
-                  initialValues={toWorkoutLogValues(day)}
-                  isNewlyCreated={
-                    day.latestWorkoutLog
-                      ? (currentRecentlyCreated?.workoutLogIds.includes(
-                          day.latestWorkoutLog.id
-                        ) ?? false)
-                      : false
-                  }
-                  workoutLog={day.latestWorkoutLog}
-                />
+                day.workoutLogs.length > 0 ? (
+                  <div className="space-y-3">
+                    {day.workoutLogs.map((workoutLog) => (
+                      <WorkoutLogManager
+                        canReport={canReport}
+                        dateLabel={dateLabel}
+                        initialValues={toWorkoutLogValues(day, workoutLog)}
+                        isNewlyCreated={
+                          currentRecentlyCreated?.workoutLogIds.includes(
+                            workoutLog.id
+                          ) ?? false
+                        }
+                        key={workoutLog.id}
+                        workoutLog={workoutLog}
+                      />
+                    ))}
+                  </div>
+                ) : (
+                  <WorkoutLogManager
+                    canReport={canReport}
+                    dateLabel={dateLabel}
+                    initialValues={toWorkoutLogValues(day, null)}
+                    workoutLog={null}
+                  />
+                )
               ) : (
                 <FoodLogManager
                   allowCreate={false}
