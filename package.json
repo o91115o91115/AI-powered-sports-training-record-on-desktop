@@ -9,7 +9,12 @@
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "test": "vitest",
-    "db:verify": "node scripts/verify-prisma-client.cjs",
+    "db:backup": "node scripts/backup-sqlite-db.cjs",
+    "db:verify": "node scripts/verify-sqlite-db.cjs",
+    "db:status": "prisma migrate status",
+    "db:deploy": "node scripts/deploy-sqlite-db.cjs",
+    "db:verify-clean": "node scripts/verify-clean-migration.cjs",
+    "db:client-verify": "node scripts/verify-prisma-client.cjs",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:studio": "prisma studio"

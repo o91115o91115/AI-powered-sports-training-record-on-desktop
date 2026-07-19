@@ -17,3 +17,5 @@ test-results
 *.sqlite3
 prisma/dev.db
 prisma/dev.db-journal
+data/backups/
+*.backup-manifest.json

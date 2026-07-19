@@ -30,12 +30,22 @@ pnpm install
 OPENAI_API_KEY="你的 OpenAI API Key"
 OPENAI_MODEL="gpt-4.1-mini"
 DATABASE_URL="file:./dev.db"
+DATABASE_BACKUP_DIR="./data/backups"
+DATABASE_BACKUP_RETENTION="7"
 ```
 
 注意：
 
 1. 不要把真實 API key 提交到 Git。
 2. 沒有 API key 時，首頁與一般頁面仍可啟動，但 AI API 功能會無法使用。
+3. `DATABASE_BACKUP_DIR` 可使用相對或絕對路徑；正式 Server 必須指向持久化磁碟。
+
+安裝套件後，先建立或升級資料庫並驗證：
+
+```powershell
+pnpm db:deploy
+pnpm db:verify
+```
 
 ## 4. 啟動開發 Server
 
@@ -76,7 +86,7 @@ http://127.0.0.1:3000/api/health
 正常會回傳：
 
 ```json
-{"ok":true,"service":"ai-powered-sports-training-record-on-desktop"}
+{ "ok": true, "service": "ai-powered-sports-training-record-on-desktop" }
 ```
 
 ## 6. 停止 Server
@@ -91,27 +101,53 @@ Ctrl + C
 
 ## 7. 什麼時候需要重跑指令
 
-| 情境 | 指令 |
-| --- | --- |
-| 第一次啟動專案 | `pnpm install`，再 `pnpm dev` |
-| 平常開發或查看畫面 | `pnpm dev` |
-| `package.json` 套件有變更 | `pnpm install` |
-| 刪除過 `node_modules` | `pnpm install` |
-| 資料庫 schema 有變更 | `pnpm prisma:migrate` 或依當下 DB 狀態處理 |
+| 情境                      | 指令                                                              |
+| ------------------------- | ----------------------------------------------------------------- |
+| 第一次啟動專案            | `pnpm install`、`pnpm db:deploy`、`pnpm db:verify`，再 `pnpm dev` |
+| 平常開發或查看畫面        | `pnpm dev`                                                        |
+| `package.json` 套件有變更 | `pnpm install`                                                    |
+| 刪除過 `node_modules`     | `pnpm install`                                                    |
+| 拉到新的 migration        | `pnpm db:backup`，再 `pnpm db:deploy` 與 `pnpm db:verify`         |
 
 ## 8. Prisma 注意事項
 
-目前 Prisma schema 驗證正常：
+目前資料庫已建立 Prisma migration baseline。一般環境使用：
 
 ```powershell
-.\node_modules\.bin\prisma.CMD validate
+pnpm db:status
+pnpm db:deploy
+pnpm db:verify
 ```
 
-但在目前本機環境中，`prisma migrate dev` / `prisma db push` 曾出現 schema engine 空白錯誤。這不影響目前 Next.js 首頁與 API skeleton 啟動。
+`db:deploy` 已處理部分 Windows 環境無法由 Prisma 自行建立空白 SQLite 檔案的情況。不要改回直接執行 migration SQL 的初始化方式。
 
-後續開始實作資料庫讀寫功能前，需再處理 Prisma migration 問題。
+禁止對含有正式資料的資料庫執行：
 
-## 9. Windows PowerShell 注意事項
+```text
+prisma migrate reset
+prisma db push
+```
+
+## 9. 資料庫備份
+
+建立一致性備份：
+
+```powershell
+pnpm db:backup
+```
+
+本機未設定 `DATABASE_BACKUP_DIR` 時，預設使用專案下的 `data/backups`，且該目錄不會提交到 Git。正式 Server 必須設定絕對路徑並掛載到持久化磁碟。
+
+備份會同時產生：
+
+- SQLite `.db` 快照
+- `.backup-manifest.json`
+- SHA-256
+- 資料表筆數、完整性與外鍵檢查結果
+
+詳細復原方式請參考 `docs/phase1/第二批資料庫安全.md`。
+
+## 10. Windows PowerShell 注意事項
 
 若 PowerShell 直接執行 `npm` 被 Execution Policy 擋住，專案仍建議使用：
 
@@ -125,7 +161,7 @@ pnpm dev
 npm.cmd --version
 ```
 
-## 10. 若 localhost 無法開啟
+## 11. 若 localhost 無法開啟
 
 請依序檢查：
 

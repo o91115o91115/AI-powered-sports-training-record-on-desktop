@@ -41,25 +41,25 @@ OpenAI API
 
 ## 3. 開發工具
 
-| 工具 | 用途 |
-| --- | --- |
-| Node.js LTS | JavaScript / TypeScript 執行環境 |
-| pnpm | 套件管理與 script 執行 |
-| Git | 版本控管 |
-| VS Code | 開發環境 |
-| SQLite | 本機資料庫 |
-| DB Browser for SQLite / SQLite Viewer | 檢視本機資料庫內容 |
-| Chrome / Edge | 開發與測試瀏覽器 |
+| 工具                                  | 用途                             |
+| ------------------------------------- | -------------------------------- |
+| Node.js LTS                           | JavaScript / TypeScript 執行環境 |
+| pnpm                                  | 套件管理與 script 執行           |
+| Git                                   | 版本控管                         |
+| VS Code                               | 開發環境                         |
+| SQLite                                | 本機資料庫                       |
+| DB Browser for SQLite / SQLite Viewer | 檢視本機資料庫內容               |
+| Chrome / Edge                         | 開發與測試瀏覽器                 |
 
 ## 4. 核心框架
 
-| 技術 | 用途 | 選用原因 |
-| --- | --- | --- |
-| Next.js | Web App 框架 | 同時支援前端頁面與後端 API，適合本機全端應用 |
-| React | UI 建置 | 適合建立互動式 Dashboard、表單、月曆與對話介面 |
-| TypeScript | 型別系統 | 降低資料結構與 API 串接錯誤 |
-| SQLite | 本機資料庫 | 不需額外安裝資料庫服務，適合本機端產品 |
-| Prisma | ORM | 提供資料模型、migration 與型別安全查詢 |
+| 技術       | 用途         | 選用原因                                       |
+| ---------- | ------------ | ---------------------------------------------- |
+| Next.js    | Web App 框架 | 同時支援前端頁面與後端 API，適合本機全端應用   |
+| React      | UI 建置      | 適合建立互動式 Dashboard、表單、月曆與對話介面 |
+| TypeScript | 型別系統     | 降低資料結構與 API 串接錯誤                    |
+| SQLite     | 本機資料庫   | 不需額外安裝資料庫服務，適合本機端產品         |
+| Prisma     | ORM          | 提供資料模型、migration 與型別安全查詢         |
 
 目前主要版本為 Next.js 15、React 19、TypeScript 5、Prisma 6 與 Tailwind CSS 3，實際版本以 `package.json` 為準。
 
@@ -69,12 +69,12 @@ OpenAI API
 
 ### 5.1 AI 使用場景
 
-| Agent | 用途 |
-| --- | --- |
-| Planning Agent | 根據使用者目標與身體狀況產生訓練與營養計畫 |
-| Logging Agent | 將自然語言運動與飲食紀錄整理為結構化資料 |
-| Review Agent | 比對原定計畫與實際紀錄，產生分析與回饋 |
-| Replanning Agent | 根據近期紀錄重新調整後續訓練菜單 |
+| Agent              | 用途                                                                   |
+| ------------------ | ---------------------------------------------------------------------- |
+| Planning Agent     | 根據使用者目標與身體狀況產生訓練與營養計畫                             |
+| Logging Agent      | 將自然語言運動與飲食紀錄整理為結構化資料                               |
+| Review Agent       | 比對原定計畫與實際紀錄，產生分析與回饋                                 |
+| Replanning Agent   | 根據近期紀錄重新調整後續訓練菜單                                       |
 | Conversation Agent | 蒐集規劃所需資訊，判斷資料完整度與風險後再交由 Planning Agent 產生草稿 |
 
 ### 5.2 OpenAI API 套件
@@ -145,40 +145,40 @@ pnpm add zod
 
 ## 6. 前端套件
 
-| 套件 | 用途 |
-| --- | --- |
-| tailwindcss | UI 樣式 |
-| lucide-react | Icon |
-| react-hook-form | 表單狀態管理 |
-| zod | 表單與 AI JSON schema 驗證 |
-| @hookform/resolvers | react-hook-form 與 zod 整合 |
-| date-fns | 日期處理 |
-| recharts | Dashboard 圖表 |
-| @fullcalendar/react | 訓練月曆 |
-| @fullcalendar/daygrid | 月曆月檢視 |
-| @fullcalendar/interaction | 月曆互動 |
-| @tanstack/react-query | 前端 API 查詢快取 |
-| zustand | 輕量狀態管理 |
+| 套件                      | 用途                        |
+| ------------------------- | --------------------------- |
+| tailwindcss               | UI 樣式                     |
+| lucide-react              | Icon                        |
+| react-hook-form           | 表單狀態管理                |
+| zod                       | 表單與 AI JSON schema 驗證  |
+| @hookform/resolvers       | react-hook-form 與 zod 整合 |
+| date-fns                  | 日期處理                    |
+| recharts                  | Dashboard 圖表              |
+| @fullcalendar/react       | 訓練月曆                    |
+| @fullcalendar/daygrid     | 月曆月檢視                  |
+| @fullcalendar/interaction | 月曆互動                    |
+| @tanstack/react-query     | 前端 API 查詢快取           |
+| zustand                   | 輕量狀態管理                |
 
 套件版本與完整清單以 `package.json` 及 `pnpm-lock.yaml` 為準。
 
 ## 7. 後端與資料庫套件
 
-| 套件 | 用途 |
-| --- | --- |
-| prisma | migration、schema 管理 |
-| @prisma/client | 應用程式查詢資料庫 |
-| openai | 呼叫 OpenAI API |
+| 套件           | 用途                   |
+| -------------- | ---------------------- |
+| prisma         | migration、schema 管理 |
+| @prisma/client | 應用程式查詢資料庫     |
+| openai         | 呼叫 OpenAI API        |
 
 目前使用 Prisma 6 與 OpenAI Node SDK 4。
 
 ## 8. 開發與測試套件
 
-| 套件 | 用途 |
-| --- | --- |
-| eslint | 靜態檢查 |
-| prettier | 程式碼格式化 |
-| vitest | 單元測試 |
+| 套件       | 用途                       |
+| ---------- | -------------------------- |
+| eslint     | 靜態檢查                   |
+| prettier   | 程式碼格式化               |
+| vitest     | 單元測試                   |
 | playwright | 端對端測試與瀏覽器畫面驗證 |
 
 目前已設定 ESLint、Prettier、Vitest 與 Playwright。Vitest 已涵蓋訓練日期判斷、疑似重複運動紀錄、計畫調整對話正規化及每日 AI 紀錄 schema；Playwright 提供端對端測試環境。
@@ -228,7 +228,8 @@ docs/
 
 ```bash
 pnpm install
-pnpm prisma:migrate
+pnpm db:deploy
+pnpm db:verify
 ```
 
 啟動本機服務：
