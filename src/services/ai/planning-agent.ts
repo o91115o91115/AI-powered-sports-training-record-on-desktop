@@ -78,7 +78,7 @@ function buildPlanningPrompt(input: PlanningAgentInput) {
 - 近期 10K：${trainingGoal.recentTenKTime ?? "未提供"}
 - 近期半馬：${trainingGoal.recentHalfMarathonTime ?? "未提供"}
 - 是否有全馬經驗：${trainingGoal.hasMarathonExperience ? "是" : "否"}
-- 每週可訓練天數：${trainingGoal.weeklyTrainingDays ?? "未提供"}
+- 每週可安排訓練日上限（不含休息日）：${trainingGoal.weeklyTrainingDays ?? "未提供"}
 - 偏好訓練日：${trainingGoal.preferredTrainingDays ?? "未提供"}
 - 不可訓練日期：${trainingGoal.unavailableDates ?? "未提供"}
 - 傷痛說明：${trainingGoal.injuryNote ?? "未提供"}
@@ -92,7 +92,8 @@ ${conversationSummary?.trim() || "未提供"}
 - 訓練結束日期：${planEndDate}
 - startDate 必須等於訓練起始日期。
 - endDate 必須等於訓練結束日期。
-- trainingDays 必須依照每週可訓練天數與偏好訓練日，完整涵蓋訓練起始日期到訓練結束日期之間的週期。
+- trainingDays 必須依照每週可安排訓練日上限與偏好訓練日，完整涵蓋訓練起始日期到訓練結束日期之間的週期。
+- 每週可安排訓練日上限只計算 trainingType 不為 rest 的日期；trainingType 為 rest 的休息日不計入。
 - 不得任意縮短為四週計畫；只有在比賽日期未提供或早於起始日期時，才可在 missingInformation 說明資料不足。
 
 輸出規則：
@@ -105,7 +106,10 @@ ${conversationSummary?.trim() || "未提供"}
 7. trainingDays 日期需落在 startDate 與 endDate 之間，並以今天到比賽日期作為完整計畫範圍，不得限制只產出四週。
 8. 若對話補充摘要與既有訓練目標衝突，請在 missingInformation 或 riskWarnings 說明，不要自行覆蓋既有資料。
 9. 所有使用者可見的 string 欄位必須使用繁體中文，不得夾雜英文句子；只有 trainingType 等 schema enum/code、使用者原文、品牌名稱、配速單位或必要專有名詞可保留英文。
-10. trainingType 必須使用 easy、long_run、tempo、interval、rest、cross_training、race。`;
+10. trainingType 必須使用 easy、long_run、tempo、interval、rest、cross_training、race。
+11. 「每週可安排訓練日上限」是每個日曆週可安排的最高訓練日數，不是必須排滿的目標；不得安排超過此上限的非 rest 日期。
+12. 應依傷痛、疲勞與近期訓練量保守決定實際訓練日數；需要恢復時可少於上限，並將其餘日期安排為 rest。
+13. 不可訓練日期必須安排為 rest；低強度跑步或 cross_training 仍屬訓練日，不得當作休息日規避上限。`;
 }
 
 export async function createTrainingPlanDraft(

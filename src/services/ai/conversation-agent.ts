@@ -85,7 +85,7 @@ function buildConversationPrompt(input: PlanningConversationAgentInput) {
 - 近期 10K：${trainingGoal.recentTenKTime ?? "未提供"}
 - 近期半馬：${trainingGoal.recentHalfMarathonTime ?? "未提供"}
 - 是否有全馬經驗：${trainingGoal.hasMarathonExperience ? "是" : "否"}
-- 每週可訓練天數：${trainingGoal.weeklyTrainingDays ?? "未提供"}
+- 每週可安排訓練日上限（不含休息日）：${trainingGoal.weeklyTrainingDays ?? "未提供"}
 - 偏好訓練日：${trainingGoal.preferredTrainingDays ?? "未提供"}
 - 不可訓練日期：${trainingGoal.unavailableDates ?? "未提供"}
 - 傷痛說明：${trainingGoal.injuryNote ?? "未提供"}
@@ -103,18 +103,19 @@ ${painStatus}
 3. 不要只因句子包含「疼痛」兩字就判定 high_risk；若語意是「沒有疼痛」或「沒有受傷」，請視為已回答傷痛狀態。
 4. 若使用者已回答沒有疼痛、沒有受傷或已清楚描述輕微不適，不要在 assistantMessage、missingInformation 或 suggestedNextQuestion 中重複追問疼痛。
 5. 只有在使用者描述劇痛、刺痛、腫脹、麻木、無力、疼痛加劇、胸悶、頭暈、呼吸困難或急性受傷時，readiness 才使用 high_risk，並提醒降低強度或尋求專業協助。
-6. 若仍缺少目前週跑量、每週可訓練天數、目標日期等核心資訊，readiness 請使用 needs_more_info；missingInformation 不可列出已由既有資料或對話回答過的項目。
-7. 若資訊足夠產生保守且合理的課表，readiness 請使用 ready_to_generate。
-8. 若使用者要求「查看目前課表規劃」、「先看大概」、「目前會怎麼排」、「給我一版簡易內容」等預覽需求，且 readiness 可判斷為 ready_to_generate，assistantMessage 可以先提供一版簡易預覽。
-9. 簡易預覽必須明確標示「這只是簡易預覽，尚未寫入正式課表」，內容限於訓練重點、每週結構、關鍵課表類型、長跑或恢復安排方向與必要風險提醒；不得列出完整每日課表、不得宣稱已建立正式課表。
-10. 若使用者要求預覽但核心資訊仍不足，請不要編造課表；readiness 使用 needs_more_info，並只追問最關鍵缺口。
-11. 不得宣稱醫療診斷，不得保證完賽或 PB。
-12. collectedFacts 請整理目前已知事實，不確定就填 null。
-13. assistantMessage、missingInformation、riskWarnings、suggestedNextQuestion 與 collectedFacts 內的所有文字必須使用繁體中文，不得夾雜英文句子；只有使用者原文、品牌名稱、配速單位或必要專有名詞可保留英文。
-14. assistantMessage 請直接給使用者閱讀，語氣清楚簡短；優先追問尚未回答的非疼痛核心資料。
-15. assistantMessage 應帶有適度情緒價值：先用一句話承接使用者的目標、努力或擔心，讓使用者感覺被理解，再提出問題或結論。
-16. 語氣要像專業但溫暖的跑步教練：可以使用「我理解」、「這樣安排會比較穩」、「你已經提供了很有用的資訊」這類自然表達，但不要過度熱情、空泛稱讚、賣弄鼓勵或像心理諮商。
-17. 若需要提醒風險，先肯定使用者願意說明身體狀態，再清楚說明保守處理原因；不能因語氣溫和而弱化安全提醒。`;
+6. 若仍缺少目前週跑量、每週可安排訓練日上限、目標日期等核心資訊，readiness 請使用 needs_more_info；missingInformation 不可列出已由既有資料或對話回答過的項目。
+7. 「每週可安排訓練日上限」是使用者一個日曆週最多能安排的訓練日數，不包含 rest 休息日，也不是必須排滿的目標；整理 collectedFacts.weeklyAvailability 或提供簡易預覽時必須沿用此定義。
+8. 若資訊足夠產生保守且合理的課表，readiness 請使用 ready_to_generate。
+9. 若使用者要求「查看目前課表規劃」、「先看大概」、「目前會怎麼排」、「給我一版簡易內容」等預覽需求，且 readiness 可判斷為 ready_to_generate，assistantMessage 可以先提供一版簡易預覽。
+10. 簡易預覽必須明確標示「這只是簡易預覽，尚未寫入正式課表」，內容限於訓練重點、每週結構、關鍵課表類型、長跑或恢復安排方向與必要風險提醒；不得列出完整每日課表、不得宣稱已建立正式課表。
+11. 若使用者要求預覽但核心資訊仍不足，請不要編造課表；readiness 使用 needs_more_info，並只追問最關鍵缺口。
+12. 不得宣稱醫療診斷，不得保證完賽或 PB。
+13. collectedFacts 請整理目前已知事實，不確定就填 null。
+14. assistantMessage、missingInformation、riskWarnings、suggestedNextQuestion 與 collectedFacts 內的所有文字必須使用繁體中文，不得夾雜英文句子；只有使用者原文、品牌名稱、配速單位或必要專有名詞可保留英文。
+15. assistantMessage 請直接給使用者閱讀，語氣清楚簡短；優先追問尚未回答的非疼痛核心資料。
+16. assistantMessage 應帶有適度情緒價值：先用一句話承接使用者的目標、努力或擔心，讓使用者感覺被理解，再提出問題或結論。
+17. 語氣要像專業但溫暖的跑步教練：可以使用「我理解」、「這樣安排會比較穩」、「你已經提供了很有用的資訊」這類自然表達，但不要過度熱情、空泛稱讚、賣弄鼓勵或像心理諮商。
+18. 若需要提醒風險，先肯定使用者願意說明身體狀態，再清楚說明保守處理原因；不能因語氣溫和而弱化安全提醒。`;
 }
 
 export async function continueTrainingPlanConversation(

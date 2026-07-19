@@ -118,7 +118,7 @@ const buildConversationSummary = (
   return `對話狀態：${conversation.readiness}
 已知目標：${facts.goal ?? "未整理"}
 目前能力：${facts.currentFitness ?? "未整理"}
-每週可訓練時間：${facts.weeklyAvailability ?? "未整理"}
+每週可安排訓練日上限（不含休息日）：${facts.weeklyAvailability ?? "未整理"}
 傷痛或疼痛：${facts.injuryOrPain ?? "未整理"}
 疲勞狀態：${facts.fatigue ?? "未整理"}
 訓練偏好：${facts.preferences ?? "未整理"}
