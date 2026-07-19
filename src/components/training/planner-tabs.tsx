@@ -3,28 +3,24 @@
 import type { ReactNode } from "react";
 import { useState } from "react";
 
-type PlannerTab = "plans" | "chat" | "adjustments";
+type PlannerTab = "plans" | "chat";
 
 type PlannerTabsProps = {
-  adjustmentContent: ReactNode;
   chatContent: ReactNode;
   planContent: ReactNode;
 };
 
 const tabs: Array<{ id: PlannerTab; label: string }> = [
   { id: "plans", label: "查看計畫" },
-  { id: "chat", label: "AI 對話" },
-  { id: "adjustments", label: "AI 計畫調整" }
+  { id: "chat", label: "AI 對話建立計畫" }
 ];
 
 export function PlannerTabs({
-  adjustmentContent,
   chatContent,
   planContent
 }: PlannerTabsProps) {
   const [activeTab, setActiveTab] = useState<PlannerTab>("plans");
   const content = {
-    adjustments: adjustmentContent,
     chat: chatContent,
     plans: planContent
   }[activeTab];

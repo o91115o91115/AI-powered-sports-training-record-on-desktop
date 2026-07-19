@@ -1,7 +1,7 @@
 import { PageShell } from "@/components/layout/page-shell";
 import { getAdjustablePlansData } from "@/app/adjustments/data";
 import { AiPlanChat } from "@/components/training/ai-plan-chat";
-import { PlanAdjustmentSelector } from "@/components/training/plan-adjustment-selector";
+import { PlanAdjustmentPanel } from "@/components/training/plan-adjustment-panel";
 import {
   PlanVersionList,
   type VersionListItem
@@ -149,6 +149,9 @@ const planStatusLabels: Record<string, string> = {
 export default async function PlannerPage() {
   const [{ activeConversation, hasGoal, hasProfile, plans }, adjustablePlans] =
     await Promise.all([getPlannerData(), getAdjustablePlansData()]);
+  const adjustablePlansById = new Map(
+    adjustablePlans.map((plan) => [plan.id, plan])
+  );
 
   const planContent = (
     <section className="space-y-5">
@@ -164,7 +167,10 @@ export default async function PlannerPage() {
           目前尚無訓練計畫，請先透過 AI 對話建立計畫。
         </div>
       ) : (
-        plans.map((plan) => (
+        plans.map((plan) => {
+          const adjustablePlan = adjustablePlansById.get(plan.id);
+
+          return (
           <details
             className="rounded-lg border border-line bg-panel p-6"
             key={plan.id}
@@ -194,15 +200,53 @@ export default async function PlannerPage() {
                 planStatus={plan.status}
                 versions={plan.versions}
               />
+
+              {adjustablePlan ? (
+                <details className="mt-5 rounded-lg border border-primary/40 bg-background">
+                  <summary className="cursor-pointer list-none p-4">
+                    <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                      <div>
+                        <h4 className="font-semibold text-foreground">
+                          使用 AI 調整此計畫
+                        </h4>
+                        <p className="mt-1 text-sm text-muted">
+                          調整對象：{plan.title} / {plan.activeVersionLabel}
+                        </p>
+                      </div>
+                      <span className="text-sm font-semibold text-primary">
+                        展開調整工具
+                      </span>
+                    </div>
+                  </summary>
+
+                  <div className="border-t border-line p-4">
+                    <div className="mb-5 rounded-md border border-line bg-panel p-4 text-sm leading-6 text-muted">
+                      請描述近期狀況或希望調整的內容。AI 會先產生新的草稿版本，不會直接覆蓋目前使用中的計畫；確認內容後才會正式套用。
+                    </div>
+                    <PlanAdjustmentPanel
+                      activeVersionLabel={`${plan.title} / ${plan.activeVersionLabel}`}
+                      currentDraft={adjustablePlan.currentDraft}
+                      feedback={adjustablePlan.feedback}
+                      initialConversation={adjustablePlan.initialConversation}
+                      planId={plan.id}
+                    />
+                  </div>
+                </details>
+              ) : plan.activeVersionId ? (
+                <p className="mt-5 rounded-md border border-line bg-background p-4 text-sm text-muted">
+                  此計畫目前無法使用 AI 調整，請重新整理頁面或確認目前版本狀態。
+                </p>
+              ) : (
+                <p className="mt-5 rounded-md border border-line bg-background p-4 text-sm text-muted">
+                  請先確認一個計畫版本，之後即可使用 AI 調整此計畫。
+                </p>
+              )}
             </div>
           </details>
-        ))
+          );
+        })
       )}
     </section>
-  );
-
-  const adjustmentContent = (
-    <PlanAdjustmentSelector plans={adjustablePlans} />
   );
 
   return (
@@ -222,7 +266,6 @@ export default async function PlannerPage() {
         ) : null}
 
         <PlannerTabs
-          adjustmentContent={adjustmentContent}
           chatContent={
             <AiPlanChat
               disabled={!hasProfile || !hasGoal}
