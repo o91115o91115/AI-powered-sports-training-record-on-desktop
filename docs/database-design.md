@@ -106,6 +106,8 @@ erDiagram
     string id PK
     string userProfileId FK
     string trainingGoalId FK
+    string trainingPlanId
+    string conversationType
     string generatedTrainingPlanVersionId FK
     string status
     string summary
@@ -329,13 +331,15 @@ erDiagram
 
 ## 3.6 TrainingPlanConversation
 
-儲存 AI 訓練規劃對話的狀態、資訊完整度與風險層級。對話可關聯訓練目標，產生草稿後再關聯唯一一筆 TrainingPlanVersion。
+儲存 AI 訓練規劃或計畫調整對話的狀態、資訊完整度與風險層級。規劃對話可關聯訓練目標，調整對話則記錄所屬訓練計畫；產生草稿後再關聯唯一一筆 TrainingPlanVersion。
 
 | 欄位 | 型別 | 說明 |
 | --- | --- | --- |
 | id | String | Primary key |
 | userProfileId | String | 關聯 UserProfile |
 | trainingGoalId | String | 可選，關聯 TrainingGoal |
+| trainingPlanId | String | 可選，計畫調整對話所屬的 TrainingPlan |
+| conversationType | String | planning、adjustment，預設 planning |
 | generatedTrainingPlanVersionId | String | 可選且唯一，關聯此對話產生的 TrainingPlanVersion |
 | status | String | active、completed、archived，預設 active |
 | summary | String | 對話摘要與已蒐集資訊 |

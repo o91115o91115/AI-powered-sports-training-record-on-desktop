@@ -151,6 +151,7 @@ async function getCalendarPlan(): Promise<CalendarPlanData | null> {
 
             return {
               id: day.id,
+              trainingPlanId: plan.id,
               userProfileId: plan.userProfileId,
               date: toDateInput(day.date),
               trainingType: day.trainingType,

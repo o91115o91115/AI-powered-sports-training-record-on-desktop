@@ -89,6 +89,8 @@ model TrainingPlanConversation {
   id                             String                            @id @default(cuid())
   userProfileId                  String
   trainingGoalId                 String?
+  trainingPlanId                 String?
+  conversationType               String                            @default("planning")
   generatedTrainingPlanVersionId String?                           @unique
   status                         String                            @default("active")
   summary                        String?
@@ -103,6 +105,7 @@ model TrainingPlanConversation {
 
   @@index([userProfileId, status, updatedAt])
   @@index([trainingGoalId, status])
+  @@index([trainingPlanId, conversationType, status, updatedAt])
 }
 
 model TrainingPlanConversationMessage {

@@ -17,6 +17,104 @@ export type PlannerActionResult = {
   message: string;
 };
 
+export type TrainingPlanVersionDetailsResult =
+  | {
+      ok: true;
+      trainingDays: Array<{
+        id: string;
+        date: string;
+        trainingType: string;
+        targetDistanceKm: number | null;
+        targetDurationMin: number | null;
+        targetPace: string | null;
+        targetIntensity: string | null;
+        description: string | null;
+        notes: string | null;
+        recoverySuggestion: string | null;
+        nutritionSuggestion: {
+          carbSuggestion: string | null;
+          proteinSuggestion: string | null;
+          hydrationSuggestion: string | null;
+          preWorkoutSuggestion: string | null;
+          postWorkoutSuggestion: string | null;
+          longRunFuelSuggestion: string | null;
+          restDaySuggestion: string | null;
+          estimateNote: string | null;
+        } | null;
+      }>;
+    }
+  | { ok: false; message: string };
+
+export async function getTrainingPlanVersionDetails(
+  trainingPlanVersionId: string
+): Promise<TrainingPlanVersionDetailsResult> {
+  if (!trainingPlanVersionId.trim()) {
+    return { ok: false, message: "缺少訓練計畫版本，請重新選擇版本。" };
+  }
+
+  try {
+    const profile = await prisma.userProfile.findFirst({
+      orderBy: { updatedAt: "desc" },
+      select: { id: true }
+    });
+
+    if (!profile) {
+      return { ok: false, message: "尚未建立使用者資料，無法讀取計畫內容。" };
+    }
+
+    // 僅在使用者展開版本時讀取每日內容，避免首頁一次載入所有明細。
+    const version = await prisma.trainingPlanVersion.findFirst({
+      where: {
+        id: trainingPlanVersionId,
+        trainingPlan: { userProfileId: profile.id }
+      },
+      select: {
+        trainingDays: {
+          include: { nutritionSuggestion: true },
+          orderBy: { date: "asc" }
+        }
+      }
+    });
+
+    if (!version) {
+      return { ok: false, message: "找不到此訓練計畫版本，請重新整理頁面。" };
+    }
+
+    return {
+      ok: true,
+      trainingDays: version.trainingDays.map((day) => ({
+        id: day.id,
+        date: day.date.toISOString().slice(0, 10),
+        trainingType: day.trainingType,
+        targetDistanceKm: day.targetDistanceKm,
+        targetDurationMin: day.targetDurationMin,
+        targetPace: day.targetPace,
+        targetIntensity: day.targetIntensity,
+        description: day.description,
+        notes: day.notes,
+        recoverySuggestion: day.recoverySuggestion,
+        nutritionSuggestion: day.nutritionSuggestion
+          ? {
+              carbSuggestion: day.nutritionSuggestion.carbSuggestion,
+              proteinSuggestion: day.nutritionSuggestion.proteinSuggestion,
+              hydrationSuggestion: day.nutritionSuggestion.hydrationSuggestion,
+              preWorkoutSuggestion: day.nutritionSuggestion.preWorkoutSuggestion,
+              postWorkoutSuggestion: day.nutritionSuggestion.postWorkoutSuggestion,
+              longRunFuelSuggestion: day.nutritionSuggestion.longRunFuelSuggestion,
+              restDaySuggestion: day.nutritionSuggestion.restDaySuggestion,
+              estimateNote: day.nutritionSuggestion.estimateNote
+            }
+          : null
+      }))
+    };
+  } catch {
+    return {
+      ok: false,
+      message: "目前無法讀取此版本內容，請稍後再試。"
+    };
+  }
+}
+
 const toNullableText = (value?: string) => {
   const text = value?.trim();
   return text ? text : null;

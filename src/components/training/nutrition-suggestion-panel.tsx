@@ -24,21 +24,27 @@ const trainingTypeNotes: Record<string, string> = {
   race: "比賽日飲食以熟悉、低風險、容易消化的內容為主，不臨時嘗試新食物。"
 };
 
-const fields: Array<{
+const summaryFields: Array<{
   key: keyof NutritionSuggestionPanelData;
   label: string;
-  emphasis?: "hydration" | "fuel";
 }> = [
-  { key: "carbSuggestion", label: "碳水建議", emphasis: "fuel" },
+  { key: "carbSuggestion", label: "碳水建議" },
   { key: "proteinSuggestion", label: "蛋白質建議" },
-  { key: "hydrationSuggestion", label: "水分補充", emphasis: "hydration" },
+  { key: "hydrationSuggestion", label: "水分補充" }
+];
+
+const detailFields: Array<{
+  key: keyof NutritionSuggestionPanelData;
+  label: string;
+}> = [
   { key: "preWorkoutSuggestion", label: "訓練前飲食" },
   { key: "postWorkoutSuggestion", label: "訓練後恢復" },
   { key: "longRunFuelSuggestion", label: "長跑補給" },
   { key: "restDaySuggestion", label: "休息日飲食" }
 ];
 
-const valueOrEmpty = (value: string | null | undefined) => value?.trim() || "尚未提供";
+const valueOrEmpty = (value: string | null | undefined) =>
+  value?.trim() || "尚未提供";
 
 export function NutritionSuggestionPanel({
   nutritionSuggestion,
@@ -50,7 +56,7 @@ export function NutritionSuggestionPanel({
 
   return (
     <section className="rounded-lg border border-line bg-panel p-4">
-      <div className="flex flex-col gap-3 border-b border-line pb-4 sm:flex-row sm:items-start sm:justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <div className="flex items-center gap-2">
             <div className="flex size-8 items-center justify-center rounded-md bg-primary text-white">
@@ -71,9 +77,9 @@ export function NutritionSuggestionPanel({
           尚未建立營養建議。
         </p>
       ) : (
-        <div className="mt-4 grid gap-3 md:grid-cols-2">
-          {fields.map((field) => (
-            <div className="rounded-md border border-line bg-background p-3" key={field.key}>
+        <div className="mt-4 grid gap-2 md:grid-cols-3">
+          {summaryFields.map((field) => (
+            <div className="rounded-md bg-background p-3" key={field.key}>
               <p className="text-xs font-semibold text-muted">{field.label}</p>
               <p className="mt-2 text-sm leading-6 text-foreground">
                 {valueOrEmpty(nutritionSuggestion[field.key])}
@@ -83,15 +89,46 @@ export function NutritionSuggestionPanel({
         </div>
       )}
 
-      <div className="mt-4 rounded-md border border-line bg-background p-3">
-        <p className="text-xs font-semibold text-muted">估算說明</p>
-        <p className="mt-2 text-sm leading-6 text-foreground">
-          {valueOrEmpty(nutritionSuggestion?.estimateNote)}
-        </p>
-        <p className="mt-2 text-xs leading-5 text-muted">
-          此內容為訓練搭配與飲食方向參考，不取代醫療、營養師或其他專業建議；若有疾病、特殊飲食限制或嚴重不適，請尋求專業協助。
-        </p>
-      </div>
+      <details className="group mt-3 rounded-md border border-line bg-background">
+        <summary className="cursor-pointer list-none px-3 py-2 text-sm font-semibold text-foreground">
+          查看完整營養建議
+          <span className="ml-2 text-xs font-normal text-muted group-open:hidden">
+            展開
+          </span>
+          <span className="ml-2 hidden text-xs font-normal text-muted group-open:inline">
+            收合
+          </span>
+        </summary>
+        <div className="border-t border-line p-3">
+          {nutritionSuggestion ? (
+            <div className="grid gap-3 md:grid-cols-2">
+              {detailFields.map((field) => (
+                <div
+                  className="rounded-md border border-line bg-panel p-3"
+                  key={field.key}
+                >
+                  <p className="text-xs font-semibold text-muted">
+                    {field.label}
+                  </p>
+                  <p className="mt-2 text-sm leading-6 text-foreground">
+                    {valueOrEmpty(nutritionSuggestion[field.key])}
+                  </p>
+                </div>
+              ))}
+            </div>
+          ) : null}
+
+          <div className="mt-3 rounded-md border border-line bg-panel p-3">
+            <p className="text-xs font-semibold text-muted">估算說明</p>
+            <p className="mt-2 text-sm leading-6 text-foreground">
+              {valueOrEmpty(nutritionSuggestion?.estimateNote)}
+            </p>
+            <p className="mt-2 text-xs leading-5 text-muted">
+              此內容為訓練搭配與飲食方向參考，不取代醫療、營養師或其他專業建議；若有疾病、特殊飲食限制或嚴重不適，請尋求專業協助。
+            </p>
+          </div>
+        </div>
+      </details>
     </section>
   );
 }

@@ -43,10 +43,7 @@ const toFormValues = (
   day?: TrainingDayListItem
 ): TrainingDayFormValues => {
   if (!day) {
-    return {
-      ...emptyTrainingDayValues,
-      trainingPlanVersionId
-    };
+    return { ...emptyTrainingDayValues, trainingPlanVersionId };
   }
 
   return {
@@ -75,8 +72,8 @@ const toFormValues = (
 const trainingTypeLabels: Record<string, string> = {
   cross_training: "交叉訓練",
   easy: "輕鬆跑",
-  interval: "間歇",
-  long_run: "長跑",
+  interval: "間歇跑",
+  long_run: "長距離跑",
   race: "比賽",
   rest: "休息",
   tempo: "節奏跑"
@@ -84,7 +81,7 @@ const trainingTypeLabels: Record<string, string> = {
 
 const valueOrEmpty = (value: string | number | null | undefined) =>
   value === null || value === undefined || String(value).trim() === ""
-    ? "未提供"
+    ? "尚未填寫"
     : String(value);
 
 function TrainingDaySummary({ day }: { day: TrainingDayListItem }) {
@@ -98,7 +95,7 @@ function TrainingDaySummary({ day }: { day: TrainingDayListItem }) {
           </h5>
         </div>
         <span className="w-fit rounded-md bg-background px-3 py-2 text-xs font-semibold text-muted">
-          訓練規劃
+          訓練內容
         </span>
       </div>
 
@@ -106,13 +103,13 @@ function TrainingDaySummary({ day }: { day: TrainingDayListItem }) {
         <div className="rounded-md border border-line bg-background p-3">
           <p className="text-xs font-semibold text-muted">目標距離</p>
           <p className="mt-2 text-sm text-foreground">
-            {day.targetDistanceKm ? `${day.targetDistanceKm} km` : "未提供"}
+            {day.targetDistanceKm ? `${day.targetDistanceKm} km` : "尚未填寫"}
           </p>
         </div>
         <div className="rounded-md border border-line bg-background p-3">
           <p className="text-xs font-semibold text-muted">目標時間</p>
           <p className="mt-2 text-sm text-foreground">
-            {day.targetDurationMin ? `${day.targetDurationMin} 分鐘` : "未提供"}
+            {day.targetDurationMin ? `${day.targetDurationMin} 分鐘` : "尚未填寫"}
           </p>
         </div>
         <div className="rounded-md border border-line bg-background p-3">
@@ -120,14 +117,14 @@ function TrainingDaySummary({ day }: { day: TrainingDayListItem }) {
           <p className="mt-2 text-sm text-foreground">{valueOrEmpty(day.targetPace)}</p>
         </div>
         <div className="rounded-md border border-line bg-background p-3">
-          <p className="text-xs font-semibold text-muted">強度</p>
+          <p className="text-xs font-semibold text-muted">訓練強度</p>
           <p className="mt-2 text-sm text-foreground">{valueOrEmpty(day.targetIntensity)}</p>
         </div>
       </div>
 
       <div className="mt-4 grid gap-3 md:grid-cols-2">
         <div className="rounded-md border border-line bg-background p-3">
-          <p className="text-xs font-semibold text-muted">訓練內容</p>
+          <p className="text-xs font-semibold text-muted">訓練說明</p>
           <p className="mt-2 text-sm leading-6 text-foreground">
             {valueOrEmpty(day.description)}
           </p>
@@ -154,12 +151,23 @@ export function TrainingDayList({
   trainingDays,
   trainingPlanVersionId
 }: TrainingDayListProps) {
+  // 同日期的多筆訓練放在同一折疊區塊，避免長週期計畫一次展開過多內容。
+  const trainingDaysByDate = trainingDays.reduce<Map<string, TrainingDayListItem[]>>(
+    (groups, day) => {
+      const items = groups.get(day.date) ?? [];
+      items.push(day);
+      groups.set(day.date, items);
+      return groups;
+    },
+    new Map()
+  );
+
   return (
     <section className="mt-5 rounded-lg border border-line bg-background p-4">
       <div className="border-b border-line pb-4">
-        <h4 className="font-semibold text-foreground">每日訓練與營養建議</h4>
+        <h4 className="font-semibold text-foreground">每日訓練內容</h4>
         <p className="mt-1 text-sm text-muted">
-          已確認版本不可直接編輯；若要調整正式計畫，請建立新版本。
+          內容依日期收合；點擊日期後查看完整訓練與飲食建議。
         </p>
       </div>
 
@@ -176,27 +184,48 @@ export function TrainingDayList({
       <div className="mt-4">
         {trainingDays.length === 0 ? (
           <p className="rounded-md border border-line bg-panel p-4 text-sm text-muted">
-            尚未建立每日訓練內容。
+            此版本尚無每日訓練內容。
           </p>
         ) : (
-          trainingDays.map((day) => (
-            <article className="mt-4 space-y-4" key={day.id}>
-              {canEdit ? (
-                <TrainingDayForm
-                  canEdit={canEdit}
-                  initialValues={toFormValues(trainingPlanVersionId, day)}
-                  mode="edit"
-                />
-              ) : (
-                <>
-                  <TrainingDaySummary day={day} />
-                  <NutritionSuggestionPanel
-                    nutritionSuggestion={day.nutritionSuggestion}
-                    trainingType={day.trainingType}
-                  />
-                </>
-              )}
-            </article>
+          Array.from(trainingDaysByDate.entries()).map(([date, days]) => (
+            <details className="mt-3 rounded-lg border border-line bg-panel" key={date}>
+              <summary className="cursor-pointer list-none px-4 py-3">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <p className="font-semibold text-foreground">{date}</p>
+                    <p className="mt-1 text-xs text-muted">
+                      {days
+                        .map((day) => trainingTypeLabels[day.trainingType] ?? day.trainingType)
+                        .join("、")}
+                    </p>
+                  </div>
+                  <span className="text-sm font-semibold text-primary">
+                    {days.length} 筆・點擊查看
+                  </span>
+                </div>
+              </summary>
+              <div className="border-t border-line p-4">
+                {days.map((day) => (
+                  <article className="space-y-4 [&:not(:first-child)]:mt-4" key={day.id}>
+                    {canEdit ? (
+                      <TrainingDayForm
+                        canEdit={canEdit}
+                        initialValues={toFormValues(trainingPlanVersionId, day)}
+                        mode="edit"
+                      />
+                    ) : (
+                      <>
+                        <TrainingDaySummary day={day} />
+                        <NutritionSuggestionPanel
+                          nutritionSuggestion={day.nutritionSuggestion}
+                          trainingType={day.trainingType}
+                        />
+                      </>
+                    )}
+                  </article>
+                ))}
+              </div>
+            </details>
           ))
         )}
       </div>

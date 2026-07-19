@@ -1,6 +1,6 @@
 "use client";
 
-import { Pencil, Trash2 } from "lucide-react";
+import { Pencil, Trash2, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 
@@ -196,6 +196,8 @@ export function FoodLogManager({
   const [result, setResult] = useState<CalendarActionResult | null>(null);
   const [isPending, startTransition] = useTransition();
   const highlightedFoodLogIdSet = new Set(highlightedFoodLogIds);
+  const editingFoodLog =
+    foodLogs.find((foodLog) => foodLog.id === editingId) ?? null;
 
   const handleDelete = (foodLogId: string) => {
     const confirmed = window.confirm("確定要刪除這筆飲食紀錄嗎？");
@@ -224,27 +226,17 @@ export function FoodLogManager({
   };
 
   return (
-    <div className="space-y-4">
-      <div className="rounded-lg border border-line bg-panel p-4">
-        <h3 className="font-semibold text-foreground">實際飲食紀錄</h3>
-        {foodLogs.length === 0 ? (
-          <p className="mt-2 text-sm leading-6 text-muted">
-            尚未記錄這一天的實際飲食。
-          </p>
-        ) : (
-          <div className="mt-4 space-y-3">
-            {foodLogs.map((foodLog) =>
-              editingId === foodLog.id ? (
-                <FoodLogForm
-                  canReport={canReport}
-                  dateLabel={dateLabel}
-                  initialValues={toFoodLogValues(foodLog, createInitialValues)}
-                  key={foodLog.id}
-                  mode="edit"
-                  onCancel={() => setEditingId(null)}
-                  onSaved={() => setEditingId(null)}
-                />
-              ) : (
+    <>
+      <div className="space-y-4">
+        <div className="rounded-lg border border-line bg-panel p-4">
+          <h3 className="font-semibold text-foreground">實際飲食紀錄</h3>
+          {foodLogs.length === 0 ? (
+            <p className="mt-2 text-sm leading-6 text-muted">
+              尚未記錄這一天的實際飲食。
+            </p>
+          ) : (
+            <div className="mt-4 space-y-3">
+              {foodLogs.map((foodLog) => (
                 <FoodLogCard
                   canReport={canReport}
                   foodLog={foodLog}
@@ -254,26 +246,65 @@ export function FoodLogManager({
                   onDelete={() => handleDelete(foodLog.id)}
                   onEdit={() => setEditingId(foodLog.id)}
                 />
-              )
-            )}
-          </div>
-        )}
-        {result ? (
-          <p
-            className={`mt-3 text-sm ${result.ok ? "text-primary" : "text-danger"}`}
-          >
-            {result.message}
-          </p>
+              ))}
+            </div>
+          )}
+          {result ? (
+            <p
+              className={`mt-3 text-sm ${result.ok ? "text-primary" : "text-danger"}`}
+            >
+              {result.message}
+            </p>
+          ) : null}
+        </div>
+
+        {canReport && allowCreate ? (
+          <FoodLogForm
+            canReport={canReport}
+            dateLabel={dateLabel}
+            initialValues={createInitialValues}
+          />
         ) : null}
       </div>
 
-      {canReport && allowCreate ? (
-        <FoodLogForm
-          canReport={canReport}
-          dateLabel={dateLabel}
-          initialValues={createInitialValues}
-        />
+      {editingFoodLog ? (
+        <div className="fixed inset-0 z-50 flex justify-end">
+          <button
+            aria-label="關閉飲食紀錄編輯"
+            className="absolute inset-0 bg-foreground/35"
+            onClick={() => setEditingId(null)}
+            type="button"
+          />
+          <aside
+            aria-label="編輯實際飲食紀錄"
+            aria-modal="true"
+            className="relative h-full w-full overflow-y-auto bg-background p-4 shadow-2xl sm:max-w-2xl sm:p-6"
+            role="dialog"
+          >
+            <div className="mb-3 flex justify-end">
+              <button
+                aria-label="關閉編輯表單"
+                className="rounded-md border border-line bg-panel p-2 text-foreground"
+                onClick={() => setEditingId(null)}
+                type="button"
+              >
+                <X size={18} />
+              </button>
+            </div>
+            <FoodLogForm
+              canReport={canReport}
+              dateLabel={dateLabel}
+              initialValues={toFoodLogValues(
+                editingFoodLog,
+                createInitialValues
+              )}
+              mode="edit"
+              onCancel={() => setEditingId(null)}
+              onSaved={() => setEditingId(null)}
+            />
+          </aside>
+        </div>
       ) : null}
-    </div>
+    </>
   );
 }

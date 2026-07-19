@@ -149,6 +149,7 @@ async function getOrCreateActiveConversation(
 ) {
   const activeConversation = await prisma.trainingPlanConversation.findFirst({
     where: {
+      conversationType: "planning",
       status: "active",
       trainingGoalId,
       userProfileId
@@ -162,6 +163,7 @@ async function getOrCreateActiveConversation(
 
   return prisma.trainingPlanConversation.create({
     data: {
+      conversationType: "planning",
       readiness: "needs_more_info",
       riskLevel: "normal",
       status: "active",
@@ -320,6 +322,7 @@ export async function sendTrainingPlanChatMessage(
     const conversation = conversationId
       ? await prisma.trainingPlanConversation.findFirst({
           where: {
+            conversationType: "planning",
             id: conversationId,
             status: "active",
             trainingGoalId: trainingGoal.id,
@@ -423,6 +426,7 @@ export async function restartTrainingPlanConversation(
     const { trainingGoal, userProfile } = await getRequiredPlannerContext();
     const conversation = await prisma.trainingPlanConversation.findFirst({
       where: {
+        conversationType: "planning",
         id: conversationId,
         status: "active",
         trainingGoalId: trainingGoal.id,
@@ -482,6 +486,7 @@ export async function generateTrainingPlanFromConversation(
     const { trainingGoal, userProfile } = await getRequiredPlannerContext();
     const persistedConversation = await prisma.trainingPlanConversation.findFirst({
       where: {
+        conversationType: "planning",
         id: input.conversationId,
         status: "active",
         trainingGoalId: trainingGoal.id,

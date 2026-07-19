@@ -2,9 +2,25 @@ import { z } from "zod";
 
 import { aiTrainingPlanDraftSchema } from "@/schemas/ai/training-plan";
 
-export const replanRequestSchema = z.object({
+export const planAdjustmentChatRequestSchema = z.object({
   trainingPlanId: z.string().min(1),
-  adjustmentRequest: z.string().trim().min(5, "請輸入至少 5 個字的調整需求。")
+  conversationId: z.string().min(1).nullable(),
+  feedbackId: z.string().min(1).nullable().optional(),
+  userMessage: z.string().trim().min(1, "請輸入想調整的方向。").max(2000)
+});
+
+export const generatePlanAdjustmentRequestSchema = z.object({
+  trainingPlanId: z.string().min(1),
+  conversationId: z.string().min(1)
+});
+
+export const aiPlanAdjustmentConversationSchema = z.object({
+  assistantMessage: z.string().min(1),
+  readiness: z.enum(["needs_more_info", "ready_to_generate", "high_risk"]),
+  missingInformation: z.array(z.string()),
+  adjustmentSummary: z.string().nullable(),
+  riskWarnings: z.array(z.string()),
+  suggestedNextQuestion: z.string().nullable()
 });
 
 export const aiPlanAdjustmentDraftSchema = z.object({
@@ -20,5 +36,7 @@ export const aiPlanAdjustmentDraftSchema = z.object({
   )
 });
 
-export type ReplanRequest = z.infer<typeof replanRequestSchema>;
+export type AiPlanAdjustmentConversation = z.infer<
+  typeof aiPlanAdjustmentConversationSchema
+>;
 export type AiPlanAdjustmentDraft = z.infer<typeof aiPlanAdjustmentDraftSchema>;

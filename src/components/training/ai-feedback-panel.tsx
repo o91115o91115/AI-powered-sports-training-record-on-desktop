@@ -24,6 +24,7 @@ export type AiFeedbackPanelData = {
 type AiFeedbackPanelProps = {
   canReport: boolean;
   feedback: AiFeedbackPanelData | null;
+  trainingPlanId: string;
   trainingDayId: string;
   userProfileId: string;
 };
@@ -31,6 +32,7 @@ type AiFeedbackPanelProps = {
 export function AiFeedbackPanel({
   canReport,
   feedback,
+  trainingPlanId,
   trainingDayId,
   userProfileId
 }: AiFeedbackPanelProps) {
@@ -73,13 +75,19 @@ export function AiFeedbackPanel({
           onClick={handleGenerate}
           type="button"
         >
-          {isPending ? <Loader2 className="animate-spin" size={16} /> : <Sparkles size={16} />}
+          {isPending ? (
+            <Loader2 className="animate-spin" size={16} />
+          ) : (
+            <Sparkles size={16} />
+          )}
           {feedback ? "重新產生回饋" : "產生今日回饋"}
         </button>
       </div>
 
       {result ? (
-        <p className={`mt-3 text-sm ${result.ok ? "text-primary" : "text-danger"}`}>
+        <p
+          className={`mt-3 text-sm ${result.ok ? "text-primary" : "text-danger"}`}
+        >
           {result.message}
         </p>
       ) : null}
@@ -88,27 +96,13 @@ export function AiFeedbackPanel({
         <div className="mt-4 space-y-3">
           <div className="rounded-md border border-line bg-background p-3">
             <p className="text-xs font-semibold text-muted">最近回饋</p>
-            <p className="mt-2 text-sm leading-6 text-foreground">{feedback.summary}</p>
-            <p className="mt-2 text-xs text-muted">產生時間：{feedback.createdAt}</p>
+            <p className="mt-2 text-sm leading-6 text-foreground">
+              {feedback.summary}
+            </p>
+            <p className="mt-2 text-xs text-muted">
+              產生時間：{feedback.createdAt}
+            </p>
           </div>
-
-          {feedback.trainingAnalysis ? (
-            <div className="rounded-md border border-line bg-background p-3">
-              <p className="text-xs font-semibold text-muted">訓練分析</p>
-              <p className="mt-2 text-sm leading-6 text-foreground">
-                {feedback.trainingAnalysis}
-              </p>
-            </div>
-          ) : null}
-
-          {feedback.nutritionAnalysis ? (
-            <div className="rounded-md border border-line bg-background p-3">
-              <p className="text-xs font-semibold text-muted">飲食分析</p>
-              <p className="mt-2 text-sm leading-6 text-foreground">
-                {feedback.nutritionAnalysis}
-              </p>
-            </div>
-          ) : null}
 
           {feedback.riskWarning ? (
             <div className="rounded-md border border-danger/30 bg-danger/10 p-3 text-danger">
@@ -120,20 +114,55 @@ export function AiFeedbackPanel({
             </div>
           ) : null}
 
-          <div className="rounded-md border border-line bg-background p-3">
-            <p className="text-xs font-semibold text-muted">下一步建議</p>
-            <p className="mt-2 text-sm leading-6 text-foreground">
-              {feedback.nextStepSuggestion ?? "尚未提供下一步建議。"}
-            </p>
-            {feedback.shouldReplan ? (
-              <div className="mt-2 rounded-md border border-accent bg-accent/10 p-2 text-sm text-accent">
-                <p>AI 建議後續檢視是否需要調整訓練計畫。</p>
-                <Link className="mt-2 inline-flex font-semibold underline" href="/adjustments">
-                  前往計畫調整
-                </Link>
+          {feedback.shouldReplan ? (
+            <div className="rounded-md border border-accent bg-accent/10 p-3 text-sm text-accent">
+              <p>AI 建議後續檢視是否需要調整訓練計畫。</p>
+              <Link
+                className="mt-2 inline-flex font-semibold underline"
+                href={`/adjustments?planId=${encodeURIComponent(trainingPlanId)}&feedbackId=${encodeURIComponent(feedback.id)}`}
+              >
+                前往計畫調整
+              </Link>
+            </div>
+          ) : null}
+
+          <details className="group rounded-md border border-line bg-background">
+            <summary className="cursor-pointer list-none px-3 py-2 text-sm font-semibold text-foreground">
+              查看完整分析與下一步
+              <span className="ml-2 text-xs font-normal text-muted group-open:hidden">
+                展開
+              </span>
+              <span className="ml-2 hidden text-xs font-normal text-muted group-open:inline">
+                收合
+              </span>
+            </summary>
+            <div className="space-y-3 border-t border-line p-3">
+              {feedback.trainingAnalysis ? (
+                <div className="rounded-md border border-line bg-panel p-3">
+                  <p className="text-xs font-semibold text-muted">訓練分析</p>
+                  <p className="mt-2 text-sm leading-6 text-foreground">
+                    {feedback.trainingAnalysis}
+                  </p>
+                </div>
+              ) : null}
+
+              {feedback.nutritionAnalysis ? (
+                <div className="rounded-md border border-line bg-panel p-3">
+                  <p className="text-xs font-semibold text-muted">飲食分析</p>
+                  <p className="mt-2 text-sm leading-6 text-foreground">
+                    {feedback.nutritionAnalysis}
+                  </p>
+                </div>
+              ) : null}
+
+              <div className="rounded-md border border-line bg-panel p-3">
+                <p className="text-xs font-semibold text-muted">下一步建議</p>
+                <p className="mt-2 text-sm leading-6 text-foreground">
+                  {feedback.nextStepSuggestion ?? "尚未提供下一步建議。"}
+                </p>
               </div>
-            ) : null}
-          </div>
+            </div>
+          </details>
         </div>
       ) : (
         <p className="mt-4 rounded-md border border-line bg-background p-3 text-sm leading-6 text-muted">
